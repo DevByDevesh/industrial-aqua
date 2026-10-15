@@ -1,0 +1,11 @@
+# Industrial Aqua SPA routing for React Router.
+Options -MultiViews
+RewriteEngine On
+
+# Keep real files and directories accessible.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route all other paths to the Vite app entry point.
+RewriteRule ^ index.html [L]

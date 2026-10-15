@@ -1,0 +1,3 @@
+import { useEffect, type PropsWithChildren } from 'react';
+import Lenis from 'lenis';
+export function LenisProvider({children}:PropsWithChildren){useEffect(()=>{const media=window.matchMedia('(prefers-reduced-motion: reduce)');if(media.matches)return;const lenis=new Lenis({autoRaf:true,smoothWheel:true,syncTouch:false,anchors:true});const notifyMotion=()=>window.dispatchEvent(new Event('scroll'));lenis.on('scroll',notifyMotion);const onPreference=(event:MediaQueryListEvent)=>{if(event.matches)lenis.stop();else lenis.start()};media.addEventListener('change',onPreference);return()=>{media.removeEventListener('change',onPreference);lenis.off('scroll',notifyMotion);lenis.destroy()}},[]);return children}

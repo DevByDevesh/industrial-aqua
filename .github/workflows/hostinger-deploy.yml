@@ -1,0 +1,50 @@
+name: Deploy Industrial Aqua to Hostinger
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Build production site
+        run: npm run build
+      - name: Check Hostinger deployment secrets
+        env:
+          FTP_SERVER: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::error::Hostinger FTP secrets are missing. Add HOSTINGER_FTP_SERVER, HOSTINGER_FTP_USERNAME, and HOSTINGER_FTP_PASSWORD in GitHub repository Settings > Secrets and variables > Actions, then rerun this workflow."
+            exit 1
+          fi
+      - name: Deploy dist to Hostinger public_html
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+          username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: dist/
+          server-dir: public_html/
+          dangerous-clean-slate: false

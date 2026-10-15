@@ -1,4 +1,4 @@
-import {useEffect,useState,type PropsWithChildren} from 'react';
+import {useEffect,useState,type FormEvent,type PropsWithChildren} from 'react';
 import {Link,useLocation,useNavigate} from 'react-router-dom';
 import {ArrowRight,ArrowUpRight,Check,Droplets,Menu,Search,ShoppingBag,X} from 'lucide-react';
 const navItems=[{to:'/shop',label:'Shop all'},{to:'/category/filters',label:'Filters'},{to:'/category/membranes',label:'Membranes'},{to:'/category/pumps-valves',label:'Pumps & valves'},{to:'/category/fittings',label:'Fittings & accessories'},{to:'/find-parts',label:'Find parts'}];
@@ -7,7 +7,7 @@ export function SiteShell({children}:PropsWithChildren){
  useEffect(()=>{setMenuOpen(false);setSearchOpen(false)},[location.pathname,location.search]);
  useEffect(()=>{if(!menuOpen&&!searchOpen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';const onKey=(event:KeyboardEvent)=>{if(event.key==='Escape'){setMenuOpen(false);setSearchOpen(false)}};window.addEventListener('keydown',onKey);return()=>{document.body.style.overflow=previous;window.removeEventListener('keydown',onKey)}},[menuOpen,searchOpen]);
  if(location.pathname.startsWith('/admin'))return <>{children}</>;
- const submitSearch=(event:React.FormEvent<HTMLFormElement>)=>{event.preventDefault();const value=query.trim();setSearchOpen(false);if(value)navigate('/shop?q='+encodeURIComponent(value));else navigate('/shop')};
+ const submitSearch=(event:FormEvent<HTMLFormElement>)=>{event.preventDefault();const value=query.trim();setSearchOpen(false);if(value)navigate('/shop?q='+encodeURIComponent(value));else navigate('/shop')};
  return <div className="site-shell"><a className="skip-link" href="#main-content">Skip to content</a><div className="announcement-bar">Precision parts for better water, at home and at work.</div>
  <header className="site-header"><button className="mobile-menu-button" aria-label={menuOpen?'Close navigation':'Open navigation'} aria-expanded={menuOpen} onClick={()=>setMenuOpen(v=>!v)}>{menuOpen?<X size={20}/>:<Menu size={20}/>}</button>
  <Link to="/" className="brand-lockup" aria-label="Industrial Aqua home"><span className="brand-mark"><Droplets size={19}/></span><span className="brand-name">industrial<span>aqua</span><small>RO SPARE PARTS</small></span></Link>

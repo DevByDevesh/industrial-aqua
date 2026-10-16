@@ -1,4 +1,4 @@
-import {ArrowDownRight,ArrowRight,ArrowUpRight,Check, Droplets, Filter, Gauge, Waves, Factory, FlaskConical, ShieldCheck, Zap, Thermometer, Wind, MessageCircle, Layers3, Settings2} from 'lucide-react';
+import {ArrowDownRight,ArrowRight,ArrowUpRight,Check, Droplets, Filter, Gauge, Waves, Factory, ShieldCheck, Zap, Thermometer, Wind, MessageCircle, Layers3, Settings2} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {motion} from 'motion/react';
 import {sectionReveal,staggerItem} from '../motion/tokens';

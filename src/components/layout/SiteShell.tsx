@@ -1,6 +1,6 @@
 import {useEffect,useState,type FormEvent,type PropsWithChildren} from 'react';
 import {Link,useLocation,useNavigate} from 'react-router-dom';
-import {ArrowRight,ArrowUpRight,Droplets,Menu,Search,ShoppingBag,X} from 'lucide-react';
+import {ArrowUpRight,Droplets,Menu,Search,ShoppingBag,X} from 'lucide-react';
 
 const navItems = [
   { to: '/shop', label: 'Shop all' },

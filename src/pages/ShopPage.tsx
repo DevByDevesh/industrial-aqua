@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowRight, ArrowUpDown, ArrowUpRight, Check, Filter, MessageCircle, Package, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { productSections, products, type Product } from '../data/products';
+import { productSections, type Product } from '../data/products';
+import { loadProducts, localProducts } from '../lib/products';
 import { whatsappEnquiryLink } from '../lib/enquiry';
 
 type SortKey = 'featured' | 'az' | 'za';
@@ -46,6 +47,18 @@ export function ShopPage() {
     setQuery(urlQuery);
   }, [urlQuery]);
 
+  // Local seed first (instant), then the live Firestore catalogue.
+  const [products, setProducts] = useState<Product[]>(localProducts);
+  useEffect(() => {
+    let cancelled = false;
+    loadProducts().then((live) => {
+      if (!cancelled && live) setProducts(live);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const updateParams = (changes: { q?: string; section?: string; sort?: SortKey }) => {
     const next = new URLSearchParams(searchParams);
     const q = changes.q !== undefined ? changes.q : urlQuery;
@@ -85,7 +98,7 @@ export function ShopPage() {
     // Keep pamphlet section order regardless of sort choice.
     const order = new Map(productSections.map((section, index) => [section.id, index]));
     return result.sort((a, b) => (order.get(a.sectionId) ?? 0) - (order.get(b.sectionId) ?? 0));
-  }, [activeSection, query, sort]);
+  }, [activeSection, query, sort, products]);
 
   const totalVisible = groups.reduce((sum, group) => sum + group.items.length, 0);
   const activeLabel =

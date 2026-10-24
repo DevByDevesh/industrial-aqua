@@ -20,7 +20,7 @@ function categoryForSection(sectionId: string) {
 
 export function ProductPage() {
   const { slug } = useParams();
-  const products = useProducts();
+  const { products, settled } = useProducts();
   const cart = useCart();
   const toast = useToast();
   const navigate = useNavigate();
@@ -31,6 +31,20 @@ export function ProductPage() {
     () => (product ? products.filter((item) => item.section === product.section && item.slug !== product.slug).slice(0, 4) : []),
     [products, product],
   );
+
+  if (!product && !settled) {
+    return (
+      <div className="shop-page">
+        <section className="shop-intro">
+          <nav className="shop-breadcrumb" aria-label="Breadcrumb">
+            <Link to="/">Home</Link><span>/</span><Link to="/shop">Products</Link><span>/</span><span>Loading</span>
+          </nav>
+          <h1>Loading product…</h1>
+          <p className="shop-intro-copy" role="status">Checking the live catalogue for this product.</p>
+        </section>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -82,13 +96,39 @@ export function ProductPage() {
         <div className="product-detail-info">
           <p className="eyebrow"><span className="eyebrow-dot" /> {sectionTitle}{product.subsection ? ' · ' + product.subsection : ''}</p>
           <h1>{product.name}</h1>
-          {product.code && <p className="product-detail-code">Model code: <span>{product.code}</span></p>}
+          <dl className="product-detail-meta">
+            <div>
+              <dt>Category</dt>
+              <dd>{category ? <Link to={'/category/' + category.slug}>{category.title}</Link> : sectionTitle}</dd>
+            </div>
+            <div>
+              <dt>Catalogue section</dt>
+              <dd><Link to={'/shop?section=' + product.section}>{sectionTitle}</Link>{product.subsection ? ' · ' + product.subsection : ''}</dd>
+            </div>
+            <div>
+              <dt>SKU / Model code</dt>
+              <dd>{product.code ?? 'Not supplied — ask the team to confirm the code for this item.'}</dd>
+            </div>
+            <div>
+              <dt>Stock</dt>
+              <dd>Confirmed on enquiry — live stock levels are not published.</dd>
+            </div>
+          </dl>
+          {product.description && (
+            <div className="product-detail-desc">
+              <h2>About this product</h2>
+              <p>{product.description}</p>
+            </div>
+          )}
           {product.specs.length > 0 && (
-            <ul className="product-detail-specs">
-              {product.specs.map((spec) => (
-                <li key={spec}><Check size={14} /> {spec}</li>
-              ))}
-            </ul>
+            <>
+              <h2 className="product-detail-specs-title">Technical specifications</h2>
+              <ul className="product-detail-specs">
+                {product.specs.map((spec) => (
+                  <li key={spec}><Check size={14} /> {spec}</li>
+                ))}
+              </ul>
+            </>
           )}
           <p className="product-detail-price">
             {product.price === null ? 'Price on request' : '₹' + product.price.toLocaleString('en-IN')}

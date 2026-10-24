@@ -21,6 +21,7 @@ export async function loadProducts(): Promise<Product[] | null> {
         section: String(data.section ?? ''),
         subsection: typeof data.subsection === 'string' ? data.subsection : undefined,
         specs: Array.isArray(data.specs) ? data.specs.map(String) : [],
+        description: typeof data.description === 'string' && data.description.trim() ? data.description : undefined,
         price: typeof data.price === 'number' ? data.price : null,
       } satisfies Product;
     });

@@ -25,6 +25,10 @@ export interface Product {
   subsection?: string
   /** Specification bullets exactly as printed, where the pamphlet gives any. */
   specs: string[]
+  /** Long-form description — only when the business supplies one. The
+   * pamphlet provides none, so this is empty across the current catalogue
+   * and the detail page simply omits the section. */
+  description?: string
   /** Always null for now — the client sets prices himself later. */
   price: number | null
 }

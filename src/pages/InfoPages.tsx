@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, ArrowUpRight, MessageCircle, Package, Search, Send, ShoppingBag } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { categories, categoryPath } from '../data/catalogue';
-import { productSections } from '../data/products';
+import { Link } from 'react-router-dom';
 import { whatsappEnquiryLink } from '../lib/enquiry';
 
 const WHATSAPP_DISPLAY = '+91 96897 57239';
@@ -201,61 +199,6 @@ export function TermsPage() {
           <h2>Changes</h2>
           <p>The catalogue and these terms may be updated as the store's range and policies are published; the version confirmed with your order applies to that order.</p>
         </div>
-      </div>
-    </InfoShell>
-  );
-}
-
-export function FindPartsPage() {
-  const [query, setQuery] = useState('');
-  const navigate = useNavigate();
-  return (
-    <InfoShell
-      eyebrow="FIND PARTS"
-      title="Find parts for your RO"
-      intro="Start from a category or a catalogue section, or search by the model code printed on your part. If you are unsure, the team will identify the part with you on WhatsApp."
-    >
-      <form
-        className="shop-search find-search"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (query.trim()) navigate('/shop?q=' + encodeURIComponent(query.trim()));
-          else navigate('/shop');
-        }}
-      >
-        <Search size={19} />
-        <input aria-label="Search by product name or model code" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Try a model code — 004A, 013A, membrane, pump…" />
-        <button type="submit" className="shop-search-submit">Search <ArrowRight size={15} /></button>
-      </form>
-
-      <h2 className="info-heading">Browse by category</h2>
-      <div className="category-related-grid">
-        {categories.map((category) => (
-          <Link key={category.slug} to={categoryPath(category)} className="category-related-card">
-            <span className="category-related-tag">{category.tag}</span>
-            <span className="category-related-title">{category.title}</span>
-            <ArrowUpRight size={15} />
-          </Link>
-        ))}
-      </div>
-
-      <h2 className="info-heading">Browse by catalogue section</h2>
-      <div className="category-related-grid">
-        {productSections.map((section) => (
-          <Link key={section.id} to={'/shop?section=' + section.id} className="category-related-card">
-            <span className="category-related-tag">SECTION</span>
-            <span className="category-related-title">{section.title}</span>
-            <ArrowUpRight size={15} />
-          </Link>
-        ))}
-      </div>
-
-      <div className="info-card find-help">
-        <h2><MessageCircle size={17} /> Not sure which part you need?</h2>
-        <p>Send the team a photo of your current part or your system model on WhatsApp — they will help you identify the right replacement. Compatibility is confirmed only when it can be verified.</p>
-        <a href={whatsappEnquiryLink('help finding a part')} target="_blank" rel="noreferrer" className="button button-dark">
-          Ask on WhatsApp <ArrowUpRight size={14} />
-        </a>
       </div>
     </InfoShell>
   );

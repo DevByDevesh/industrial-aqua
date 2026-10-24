@@ -49,7 +49,7 @@ const solutions = [
 ];
 
 function ProductShelf({ sectionId, title }: { sectionId: string; title: string }) {
-  const products = useProducts();
+  const { products } = useProducts();
   const items = products.filter((product) => product.section === sectionId).slice(0, 10);
   if (items.length === 0) return null;
   return (

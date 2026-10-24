@@ -1,11 +1,13 @@
 import { ArrowUpRight, MessageCircle, Package } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { Product } from '../data/products';
+import { productImages } from '../data/product-images';
 import { whatsappEnquiryLink } from '../lib/enquiry';
 
 // Shared product card used by the shop catalogue and the category pages,
 // so a product looks and behaves identically wherever it appears.
 export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
+  const image = productImages[product.slug];
   return (
     <motion.article
       className="product-card"
@@ -13,10 +15,17 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, delay: Math.min(index, 8) * 0.03 }}
     >
-      <div className="product-card-top">
-        <span className="product-card-icon"><Package size={17} /></span>
-        {product.code && <span className="product-card-code">{product.code}</span>}
-      </div>
+      {image ? (
+        <div className="product-card-media">
+          <img src={image} alt={product.name} loading="lazy" />
+          {product.code && <span className="product-card-code product-card-code-overlay">{product.code}</span>}
+        </div>
+      ) : (
+        <div className="product-card-top">
+          <span className="product-card-icon"><Package size={17} /></span>
+          {product.code && <span className="product-card-code">{product.code}</span>}
+        </div>
+      )}
       <h4>{product.name}</h4>
       {product.specs.length > 0 && (
         <ul className="product-specs">

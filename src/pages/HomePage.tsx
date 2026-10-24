@@ -47,7 +47,7 @@ export function HomePage(){
           <span><Check size={14}/> Enquiry-led support</span>
         </motion.div>
       </motion.div>
-      <motion.div className="home-hero-visual home-hero-photo" initial={{opacity:0,scale:.97}} animate={{opacity:1,scale:1}} transition={{duration:.65,ease:'easeOut'}} aria-label="Industrial water treatment equipment">
+      <motion.div className="home-hero-visual home-hero-photo" initial={{opacity:0,scale:.97}} animate={{opacity:1,scale:1}} transition={{duration:.65,ease:'easeOut'}}>
         <div className="hero-visual-top"><span>INDUSTRIAL AQUA / WATER SYSTEMS</span><span>01 — 08</span></div>
         <div className="hero-photo-overlay"/>
         <div className="hero-visual-note"><span className="visual-note-mark"><Droplets size={18}/></span><span><strong>Designed around your water needs.</strong><small>Systems · Solutions · Components</small></span></div>

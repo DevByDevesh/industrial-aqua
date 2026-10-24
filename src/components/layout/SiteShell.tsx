@@ -1,6 +1,7 @@
-import {useEffect,useState,type FormEvent,type PropsWithChildren} from 'react';
-import {Link,useLocation,useNavigate} from 'react-router-dom';
-import {ArrowUpRight,Droplets,Menu,Search,ShoppingBag,X} from 'lucide-react';
+import {useCallback,useEffect,useRef,useState,type FormEvent,type PropsWithChildren} from 'react';
+import {Link,NavLink,useLocation,useNavigate} from 'react-router-dom';
+import {ArrowRight,ArrowUpRight,Droplets,Menu,Search,ShoppingBag,X} from 'lucide-react';
+import {useFocusTrap} from '../accessibility/useFocusTrap';
 
 const navItems = [
   { to: '/shop', label: 'Shop all' },
@@ -16,6 +17,12 @@ export function SiteShell({ children }: PropsWithChildren) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const mobilePanelRef = useRef<HTMLElement | null>(null);
+  const searchPanelRef = useRef<HTMLElement | null>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  useFocusTrap(mobilePanelRef, menuOpen, closeMenu);
+  useFocusTrap(searchPanelRef, searchOpen, closeSearch);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -53,6 +60,7 @@ export function SiteShell({ children }: PropsWithChildren) {
           className="mobile-menu-button"
           aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
           aria-expanded={menuOpen}
+          aria-controls="mobile-navigation"
           onClick={() => setMenuOpen(v => !v)}
         >
           {menuOpen ? <X size={18} /> : <Menu size={18} />}
@@ -65,10 +73,10 @@ export function SiteShell({ children }: PropsWithChildren) {
 
         <nav className="desktop-nav" aria-label="Main navigation">
           {navItems.map(item => (
-            <Link key={item.to} to={item.to} className={item.to === '/find-parts' ? 'find-link' : ''}>
+            <NavLink key={item.to} to={item.to} className={({isActive}) => (item.to === '/find-parts' ? 'find-link' : '') + (isActive ? ' active' : '')}>
               {item.label}
               {item.to === '/find-parts' && <ArrowUpRight size={14} />}
-            </Link>
+            </NavLink>
           ))}
         </nav>
 
@@ -82,23 +90,49 @@ export function SiteShell({ children }: PropsWithChildren) {
 
       {menuOpen && (
         <div className="mobile-nav-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setMenuOpen(false); }}>
-          <nav className="mobile-nav-panel" aria-label="Mobile navigation" role="dialog">
+          <nav ref={mobilePanelRef} id="mobile-navigation" className="mobile-nav-panel" aria-label="Mobile navigation" role="dialog" aria-modal="true">
+            <div className="mobile-nav-heading">
+              <p className="eyebrow">MENU</p>
+              <button type="button" className="icon-button" aria-label="Close navigation" onClick={() => setMenuOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
             <ul>
-              {navItems.map(item => (
-                <li key={item.to}><Link to={item.to} onClick={() => setMenuOpen(false)}>{item.label}</Link></li>
+              {navItems.map((item, index) => (
+                <li key={item.to}>
+                  <NavLink to={item.to} className="mobile-nav-item" onClick={() => setMenuOpen(false)}>
+                    <span className="mobile-nav-index">0{index + 1}</span>
+                    <span>{item.label}</span>
+                    <ArrowUpRight size={16} />
+                  </NavLink>
+                </li>
               ))}
             </ul>
+            <p className="mobile-nav-note">Product details, specifications and pricing are confirmed on enquiry while the catalogue is being completed.</p>
           </nav>
         </div>
       )}
 
       {searchOpen && (
         <div className="search-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSearchOpen(false); }}>
-          <section className="search-panel" role="dialog">
-            <form onSubmit={submitSearch}>
-              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search parts" />
-              <button type="submit">Search</button>
+          <section ref={searchPanelRef} className="search-panel" role="dialog" aria-modal="true" aria-label="Search parts">
+            <div className="search-panel-heading">
+              <div>
+                <p className="eyebrow">SEARCH</p>
+                <h2>Search parts</h2>
+              </div>
+              <button type="button" className="icon-button" aria-label="Close search" onClick={() => setSearchOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <form className="global-search-form" onSubmit={submitSearch}>
+              <Search size={18} aria-hidden="true" />
+              <label className="search-label" htmlFor="site-search">Search product categories</label>
+              <input id="site-search" data-autofocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search RO plants, filters, ETP, UV..." />
+              <button type="submit" className="button button-dark">Search <ArrowRight size={15} /></button>
             </form>
+            <p className="search-help">Search runs across the product directory. Press Escape to close.</p>
+            <Link to="/find-parts" className="search-finder-link" onClick={() => setSearchOpen(false)}>Need help choosing? Find a compatible part <ArrowUpRight size={14} /></Link>
           </section>
         </div>
       )}
@@ -111,6 +145,20 @@ export function SiteShell({ children }: PropsWithChildren) {
             <Link to="/" className="footer-brand">industrial<span>aqua</span></Link>
             <p>Precision parts for better water.</p>
           </div>
+          <nav className="footer-links" aria-label="Footer">
+            <Link to="/shop">Shop all</Link>
+            <Link to="/find-parts">Find parts</Link>
+            <Link to="/support">Support</Link>
+            <Link to="/contact">Contact</Link>
+            <Link to="/shipping">Shipping</Link>
+            <Link to="/returns">Returns</Link>
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
+          </nav>
+        </div>
+        <div className="footer-bottom">
+          <span>Industrial Aqua — RO water purifier spare parts and replacement components.</span>
+          <span>Product details, specifications and pricing are confirmed on enquiry while the catalogue is being completed.</span>
         </div>
       </footer>
     </div>

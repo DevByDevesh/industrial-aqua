@@ -34,6 +34,45 @@ export const categories: Category[] = [
 /** Categories shown on the homepage product-range grid (excludes Solutions). */
 export const homeCategories: Category[] = categories.filter((category) => category.slug !== 'solutions')
 
+export function categoryBySlug(slug: string | undefined): Category | undefined {
+  return categories.find((category) => category.slug === slug)
+}
+
+/**
+ * Which catalogue products belong to a directory category. This is the
+ * single mapping between the two taxonomies: the pamphlet catalogue is
+ * organised in sections (src/data/products.ts), while these directory
+ * categories are the customer-facing ranges. Categories with no entry
+ * here (RO plants, tanks, treatment solutions, RO systems) are
+ * enquiry-led ranges — their pages show the category description and an
+ * enquiry route instead of a product grid, because the supplied
+ * catalogue lists no products for them.
+ */
+export const categoryCatalogueSections: Record<string, string[]> = {
+  filters: ['housings-filters'],
+  membranes: ['membranes'],
+  'pumps-valves': ['pumps'],
+}
+
+/** Extra catalogue slices merged into a category, by section + subsection. */
+export const categoryCatalogueSubsections: Record<string, { section: string; subsection: string }> = {
+  // Valves live inside the Fittings section of the catalogue.
+  'pumps-valves': { section: 'fittings', subsection: 'Valve' },
+}
+
+export function productsForCategory<T extends { section: string; subsection?: string }>(
+  all: T[],
+  slug: string,
+): T[] {
+  const sections = categoryCatalogueSections[slug] ?? []
+  const extra = categoryCatalogueSubsections[slug]
+  return all.filter(
+    (product) =>
+      sections.includes(product.section) ||
+      (extra !== undefined && product.section === extra.section && product.subsection === extra.subsection),
+  )
+}
+
 export function categoryPath(category: Category): string {
   return '/category/' + category.slug
 }

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ArrowUpDown, ArrowUpRight, Check, Filter, MessageCircle, Package, Search, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowRight, ArrowUpDown, ArrowUpRight, Check, Filter, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { productSections, type Product } from '../data/products';
 import { loadProducts, localProducts } from '../lib/products';
 import { whatsappEnquiryLink } from '../lib/enquiry';
+import { ProductCard } from '../components/ProductCard';
 
 type SortKey = 'featured' | 'az' | 'za';
 
@@ -190,28 +190,7 @@ export function ShopPage() {
                 </h3>
                 <div className="product-grid">
                   {group.items.map((item, index) => (
-                    <motion.article
-                      key={item.slug}
-                      className="product-card"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.25, delay: Math.min(index, 8) * 0.03 }}
-                    >
-                      <div className="product-card-top">
-                        <span className="product-card-icon"><Package size={17} /></span>
-                        {item.code && <span className="product-card-code">{item.code}</span>}
-                      </div>
-                      <h4>{item.name}</h4>
-                      {item.specs.length > 0 && (
-                        <ul className="product-specs">
-                          {item.specs.map((spec) => <li key={spec}>{spec}</li>)}
-                        </ul>
-                      )}
-                      <div className="product-card-footer">
-                        <span className="product-price">{item.price === null ? 'Price on request' : '₹' + item.price.toLocaleString('en-IN')}</span>
-                        <a href={whatsappEnquiryLink(item.name)} target="_blank" rel="noreferrer" className="shop-card-whatsapp"><MessageCircle size={14} /> Enquire <ArrowUpRight size={14} /></a>
-                      </div>
-                    </motion.article>
+                    <ProductCard key={item.slug} product={item} index={index} />
                   ))}
                 </div>
               </div>

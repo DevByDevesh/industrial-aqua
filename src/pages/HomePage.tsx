@@ -1,20 +1,40 @@
-import {ArrowDownRight,ArrowRight,ArrowUpRight,Check, Droplets, Filter, Gauge, Waves, Factory, ShieldCheck, Zap, Thermometer, Wind, MessageCircle, Layers3, Settings2} from 'lucide-react';
+import {ArrowDownRight,ArrowRight,ArrowUpRight,Check, Droplets, Filter, Gauge, Waves, Factory, ShieldCheck, Zap, Thermometer, Wind, MessageCircle, Layers3, Settings2, type LucideIcon} from 'lucide-react';
 import {Link} from 'react-router-dom';
 import {motion} from 'motion/react';
 import {sectionReveal,staggerItem} from '../motion/tokens';
+import {categoryPath, homeCategories} from '../data/catalogue';
+import {whatsappEnquiryLink as whatsapp} from '../lib/enquiry';
 
-const whatsapp = (topic:string) => 'https://wa.me/?text=' + encodeURIComponent('Hello Industrial Aqua, I would like to enquire about ' + topic + '. Please share details and a quotation.');
+const categoryIcons: Record<string, LucideIcon> = {
+  'domestic-ro': Droplets,
+  'commercial-ro': Waves,
+  '500-1000-lph': Gauge,
+  'industrial-ro': Factory,
+  'filters': Filter,
+  'membranes': Layers3,
+  'pumps-valves': Settings2,
+  'tanks': ShieldCheck,
+};
 
-const categories = [
-  {number:'01',title:'Domestic RO Systems',description:'RO solutions and replacement essentials for everyday home water purification.',to:'/category/domestic-ro',icon:Droplets},
-  {number:'02',title:'Commercial RO Systems',description:'Water purification options for offices, shops, hospitality and commercial use.',to:'/category/commercial-ro',icon:Waves},
-  {number:'03',title:'500–1000 LPH RO Plants',description:'Mid-capacity RO plant solutions for business and institutional requirements.',to:'/category/500-1000-lph',icon:Gauge},
-  {number:'04',title:'Industrial RO Plants',description:'Explore industrial water purification plant options for larger applications.',to:'/category/industrial-ro',icon:Factory},
-  {number:'05',title:'Filters & Cartridges',description:'Filtration components for maintenance and water-treatment systems.',to:'/category/filters',icon:Filter},
-  {number:'06',title:'RO Membranes',description:'Membrane options for RO systems. Confirm model compatibility before ordering.',to:'/category/membranes',icon:Layers3},
-  {number:'07',title:'Pumps & Valves',description:'Core flow and pressure components for water treatment equipment.',to:'/category/pumps-valves',icon:Settings2},
-  {number:'08',title:'Storage Tanks',description:'Water storage options for domestic, commercial and plant installations.',to:'/category/tanks',icon:ShieldCheck},
-];
+const categoryCaptions: Record<string, string> = {
+  'domestic-ro': 'RO SYSTEMS',
+  'commercial-ro': 'RO SYSTEMS',
+  '500-1000-lph': 'LPH CAPACITY',
+  'industrial-ro': 'INDUSTRIAL',
+  'filters': 'FILTRATION',
+  'membranes': 'MEMBRANES',
+  'pumps-valves': 'FLOW CONTROL',
+  'tanks': 'STORAGE',
+};
+
+const categories = homeCategories.map((category, index) => ({
+  number: String(index + 1).padStart(2, '0'),
+  title: category.title,
+  description: category.description,
+  to: categoryPath(category),
+  icon: categoryIcons[category.slug] ?? Droplets,
+  caption: categoryCaptions[category.slug] ?? category.tag,
+}));
 
 const solutions = [
   {title:'ETP Systems',description:'Effluent treatment solutions for industrial wastewater applications.',icon:Factory},
@@ -70,7 +90,7 @@ export function HomePage(){
       <div className="category-grid category-grid-eight">
         {categories.map((category,index)=>{const Icon=category.icon;return <motion.article className="category-card" key={category.number} initial={{opacity:0,y:16}} whileInView={{opacity:1,y:0}} viewport={{once:true,amount:.2}} transition={{duration:.4,delay:(index%4)*.05}}>
           <div className="category-card-top"><span>{category.number} / PRODUCT RANGE</span><Link to={category.to} aria-label={'Explore '+category.title}><ArrowUpRight size={17}/></Link></div>
-          <div className={'category-illustration category-illustration-'+String((index%3)+1).padStart(2,'0')}><div className="category-orbit"/><div className="category-icon"><Icon size={34} strokeWidth={1.15}/></div><span className="category-illustration-caption">{category.number === '04' ? 'INDUSTRIAL' : category.number === '03' ? 'LPH CAPACITY' : category.number === '05' ? 'FILTRATION' : category.number === '06' ? 'MEMBRANES' : category.number === '07' ? 'FLOW CONTROL' : category.number === '08' ? 'STORAGE' : 'RO SYSTEMS'}</span></div>
+          <div className={'category-illustration category-illustration-'+String((index%3)+1).padStart(2,'0')}><div className="category-orbit"/><div className="category-icon"><Icon size={34} strokeWidth={1.15}/></div><span className="category-illustration-caption">{category.caption}</span></div>
           <h3>{category.title}</h3><p>{category.description}</p><Link to={category.to} className="category-card-link">Explore category <ArrowRight size={15}/></Link>
           <a className="category-whatsapp-link" href={whatsapp(category.title)} target="_blank" rel="noreferrer"><MessageCircle size={14}/> Ask on WhatsApp</a>
         </motion.article>})}

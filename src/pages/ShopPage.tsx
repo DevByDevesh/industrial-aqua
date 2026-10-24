@@ -1,53 +1,60 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, ArrowUpDown, ArrowUpRight, Check, Filter, Search, SlidersHorizontal, X, MessageCircle } from 'lucide-react';
+import { ArrowRight, ArrowUpDown, ArrowUpRight, Check, Filter, MessageCircle, Package, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { categories, categoryPath, isCategorySlug, type Category } from '../data/catalogue';
+import { productSections, products, type Product } from '../data/products';
 import { whatsappEnquiryLink } from '../lib/enquiry';
 
 type SortKey = 'featured' | 'az' | 'za';
 
 const sortOptions: { value: SortKey; label: string }[] = [
-  { value: 'featured', label: 'Featured order' },
+  { value: 'featured', label: 'Catalogue order' },
   { value: 'az', label: 'Name A–Z' },
   { value: 'za', label: 'Name Z–A' },
 ];
 
-const filterOptions: { id: string; label: string; group?: string }[] = [
-  { id: 'all', label: 'All products', group: 'Browse all' },
-  ...categories.map((category) => ({ id: category.slug, label: category.title, group: category.group })),
-];
+function matchesQuery(product: Product, needle: string): boolean {
+  if (!needle) return true;
+  const sectionTitle = productSections.find((section) => section.id === product.section)?.title ?? '';
+  const haystack = [product.name, product.code ?? '', product.subsection ?? '', sectionTitle, ...product.specs]
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(needle);
+}
 
-function matchesQuery(category: Category, query: string): boolean {
-  if (!query) return true;
-  return (category.title + ' ' + category.description + ' ' + category.tag).toLowerCase().includes(query);
+interface ProductGroup {
+  key: string;
+  sectionId: string;
+  sectionTitle: string;
+  subsection?: string;
+  items: Product[];
 }
 
 export function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Filters live in the URL (?q=, ?category=, ?sort=) so results stay
-  // consistent across refresh, back/forward and links from the header search.
+  // Search, section and sort live in the URL (?q=, ?section=, ?sort=) so
+  // results stay consistent across refresh, back/forward and header search.
   const urlQuery = searchParams.get('q') ?? '';
-  const active = isCategorySlug(searchParams.get('category')) ? (searchParams.get('category') as string) : 'all';
+  const sectionParam = searchParams.get('section');
+  const activeSection = sectionParam && productSections.some((section) => section.id === sectionParam) ? sectionParam : 'all';
   const sortParam = searchParams.get('sort');
   const sort: SortKey = sortParam === 'az' || sortParam === 'za' ? sortParam : 'featured';
 
-  // The input keeps its own text while typing and follows the URL when it
-  // changes from elsewhere (header search, back/forward, category links).
   const [query, setQuery] = useState(urlQuery);
   useEffect(() => {
     setQuery(urlQuery);
   }, [urlQuery]);
 
-  const updateParams = (changes: { q?: string; category?: string; sort?: SortKey }) => {
+  const updateParams = (changes: { q?: string; section?: string; sort?: SortKey }) => {
     const next = new URLSearchParams(searchParams);
     const q = changes.q !== undefined ? changes.q : urlQuery;
-    const category = changes.category !== undefined ? changes.category : active;
+    const section = changes.section !== undefined ? changes.section : activeSection;
     const nextSort = changes.sort !== undefined ? changes.sort : sort;
     if (q.trim()) next.set('q', q); else next.delete('q');
-    if (category !== 'all') next.set('category', category); else next.delete('category');
+    if (section !== 'all') next.set('section', section); else next.delete('section');
     if (nextSort !== 'featured') next.set('sort', nextSort); else next.delete('sort');
+    next.delete('category'); // legacy Phase 3 directory parameter
     setSearchParams(next, { replace: true });
   };
 
@@ -56,18 +63,34 @@ export function ShopPage() {
     setSearchParams({}, { replace: true });
   };
 
-  const visible = useMemo(() => {
+  const groups = useMemo<ProductGroup[]>(() => {
     const needle = query.trim().toLowerCase();
-    const filtered = categories.filter(
-      (category) => (active === 'all' || category.slug === active) && matchesQuery(category, needle),
+    const filtered = products.filter(
+      (product) => (activeSection === 'all' || product.section === activeSection) && matchesQuery(product, needle),
     );
-    if (sort === 'az') return [...filtered].sort((a, b) => a.title.localeCompare(b.title));
-    if (sort === 'za') return [...filtered].sort((a, b) => b.title.localeCompare(a.title));
-    return filtered;
-  }, [active, query, sort]);
+    const sorted =
+      sort === 'az'
+        ? [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+        : sort === 'za'
+          ? [...filtered].sort((a, b) => b.name.localeCompare(a.name))
+          : filtered;
+    const result: ProductGroup[] = [];
+    for (const product of sorted) {
+      const sectionTitle = productSections.find((section) => section.id === product.section)?.title ?? product.section;
+      const key = product.section + '|' + (product.subsection ?? '');
+      const existing = result.find((group) => group.key === key);
+      if (existing) existing.items.push(product);
+      else result.push({ key, sectionId: product.section, sectionTitle, subsection: product.subsection, items: [product] });
+    }
+    // Keep pamphlet section order regardless of sort choice.
+    const order = new Map(productSections.map((section, index) => [section.id, index]));
+    return result.sort((a, b) => (order.get(a.sectionId) ?? 0) - (order.get(b.sectionId) ?? 0));
+  }, [activeSection, query, sort]);
 
-  const activeLabel = active === 'all' ? 'Explore our range' : categories.find((category) => category.slug === active)?.title;
-  const hasFilters = active !== 'all' || query.trim() !== '' || sort !== 'featured';
+  const totalVisible = groups.reduce((sum, group) => sum + group.items.length, 0);
+  const activeLabel =
+    activeSection === 'all' ? 'All products' : productSections.find((section) => section.id === activeSection)?.title;
+  const hasFilters = activeSection !== 'all' || query.trim() !== '' || sort !== 'featured';
 
   return (
     <div className="shop-page">
@@ -75,35 +98,43 @@ export function ShopPage() {
         <div className="shop-breadcrumb"><Link to="/">Home</Link><span>/</span><span>Products</span></div>
         <p className="eyebrow"><span className="eyebrow-dot" /> THE INDUSTRIAL AQUA RANGE</p>
         <h1>Systems for <em>every scale.</em></h1>
-        <p className="shop-intro-copy">Explore domestic and commercial RO systems, industrial RO plants, replacement components and water treatment solutions. Ask our team to confirm specifications, availability and pricing.</p>
+        <p className="shop-intro-copy">Browse the full product catalogue — membranes, pumps, housings, filters, fittings and accessories, organised by section just like our catalogue. Search by product name or model code, and ask our team to confirm specifications, availability and pricing.</p>
         <form className="shop-search" onSubmit={(event) => event.preventDefault()}>
           <Search size={19} />
           <input
-            aria-label="Search product categories"
+            aria-label="Search products"
             value={query}
             onChange={(event) => { setQuery(event.target.value); updateParams({ q: event.target.value }); }}
             onKeyDown={(event) => { if (event.key === 'Escape' && query) { setQuery(''); updateParams({ q: '' }); } }}
-            placeholder="Search RO plants, filters, ETP, UV..."
+            placeholder="Search products or codes — try 004A, membrane, pump..."
           />
           {query && <button type="button" aria-label="Clear search" onClick={() => { setQuery(''); updateParams({ q: '' }); }}><X size={16} /></button>}
           <button type="submit" className="shop-search-submit">Search <ArrowRight size={15} /></button>
         </form>
-        <div className="shop-intro-meta"><span><Check size={14} /> Domestic to industrial</span><span><Check size={14} /> Enquiry-led product details</span></div>
+        <div className="shop-intro-meta"><span><Check size={14} /> {products.length} catalogue products</span><span><Check size={14} /> Enquiry-led product details</span></div>
       </section>
 
       <section className="shop-catalogue">
         <aside className="shop-sidebar">
-          <div className="shop-sidebar-heading"><SlidersHorizontal size={16} /><span>Product categories</span></div>
-          <div className="shop-category-list" role="group" aria-label="Filter by category">
-            {filterOptions.map((item) => (
+          <div className="shop-sidebar-heading"><SlidersHorizontal size={16} /><span>Catalogue sections</span></div>
+          <div className="shop-category-list" role="group" aria-label="Filter by section">
+            <button
+              type="button"
+              className={activeSection === 'all' ? 'active' : ''}
+              aria-pressed={activeSection === 'all'}
+              onClick={() => updateParams({ section: 'all' })}
+            >
+              <span>All products</span>{activeSection === 'all' && <Check size={14} />}
+            </button>
+            {productSections.map((section) => (
               <button
                 type="button"
-                key={item.id}
-                className={active === item.id ? 'active' : ''}
-                aria-pressed={active === item.id}
-                onClick={() => updateParams({ category: item.id })}
+                key={section.id}
+                className={activeSection === section.id ? 'active' : ''}
+                aria-pressed={activeSection === section.id}
+                onClick={() => updateParams({ section: section.id })}
               >
-                <span>{item.label}</span>{active === item.id && <Check size={14} />}
+                <span>{section.title}</span>{activeSection === section.id && <Check size={14} />}
               </button>
             ))}
           </div>
@@ -118,17 +149,17 @@ export function ShopPage() {
         <div className="shop-results">
           <div className="shop-results-heading">
             <div>
-              <p className="eyebrow">PRODUCT DIRECTORY</p>
+              <p className="eyebrow">PRODUCT CATALOGUE</p>
               <h2>{activeLabel}</h2>
             </div>
-            <span className="shop-result-count" role="status" aria-live="polite">{visible.length} {visible.length === 1 ? 'category' : 'categories'}</span>
+            <span className="shop-result-count" role="status" aria-live="polite">{totalVisible} {totalVisible === 1 ? 'product' : 'products'}</span>
           </div>
 
           <div className="shop-toolbar">
             <label className="shop-sort">
               <ArrowUpDown size={14} />
               <span>Sort</span>
-              <select aria-label="Sort categories" value={sort} onChange={(event) => updateParams({ sort: event.target.value as SortKey })}>
+              <select aria-label="Sort products" value={sort} onChange={(event) => updateParams({ sort: event.target.value as SortKey })}>
                 {sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
               </select>
             </label>
@@ -137,41 +168,49 @@ export function ShopPage() {
             )}
           </div>
 
-          {visible.length > 0 ? (
-            <div className="shop-category-grid">
-              {visible.map((item, index) => (
-                <motion.article
-                  key={item.slug}
-                  className="shop-category-card"
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.28, delay: index * 0.035 }}
-                >
-                  <Link to={categoryPath(item)} className="shop-card-art" aria-label={'Open ' + item.title}>
-                    <span className="shop-card-number">{String(categories.indexOf(item) + 1).padStart(2, '0')} / PRODUCT</span>
-                    <div className={'shop-art-symbol shop-art-' + item.art}>
-                      <span className="shop-art-ring" />
-                      <span className="shop-art-core">{item.art === 'filter' ? 'F' : item.art === 'membrane' ? 'M' : item.art === 'pump' ? 'P' : '+'}</span>
-                    </div>
-                    <span className="shop-card-tag">{item.tag}</span>
-                  </Link>
-                  <div className="shop-card-copy">
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
-                    <Link to={categoryPath(item)} className="shop-card-link">View category <ArrowRight size={15} /></Link>
-                    <a href={whatsappEnquiryLink(item.title)} target="_blank" rel="noreferrer" className="shop-card-whatsapp"><MessageCircle size={14} /> Enquire on WhatsApp <ArrowUpRight size={14} /></a>
-                  </div>
-                </motion.article>
-              ))}
-            </div>
+          {totalVisible > 0 ? (
+            groups.map((group) => (
+              <div key={group.key} className="product-group">
+                <h3 className="product-group-heading">
+                  {group.sectionTitle}
+                  {group.subsection && <span> · {group.subsection}</span>}
+                </h3>
+                <div className="product-grid">
+                  {group.items.map((item, index) => (
+                    <motion.article
+                      key={item.slug}
+                      className="product-card"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, delay: Math.min(index, 8) * 0.03 }}
+                    >
+                      <div className="product-card-top">
+                        <span className="product-card-icon"><Package size={17} /></span>
+                        {item.code && <span className="product-card-code">{item.code}</span>}
+                      </div>
+                      <h4>{item.name}</h4>
+                      {item.specs.length > 0 && (
+                        <ul className="product-specs">
+                          {item.specs.map((spec) => <li key={spec}>{spec}</li>)}
+                        </ul>
+                      )}
+                      <div className="product-card-footer">
+                        <span className="product-price">{item.price === null ? 'Price on request' : '₹' + item.price.toLocaleString('en-IN')}</span>
+                        <a href={whatsappEnquiryLink(item.name)} target="_blank" rel="noreferrer" className="shop-card-whatsapp"><MessageCircle size={14} /> Enquire <ArrowUpRight size={14} /></a>
+                      </div>
+                    </motion.article>
+                  ))}
+                </div>
+              </div>
+            ))
           ) : (
             <div className="shop-empty" role="status">
               <span className="shop-empty-icon"><Search size={22} /></span>
-              <h3>No matching categories</h3>
+              <h3>No matching products</h3>
               <p>
                 {query.trim()
-                  ? <>Nothing in {active === 'all' ? 'the directory' : '“' + activeLabel + '”'} matches “{query.trim()}”. Try a broader search term or clear your filters.</>
-                  : <>No categories match the current filters. Clear them to explore all products.</>}
+                  ? <>Nothing in {activeSection === 'all' ? 'the catalogue' : '“' + activeLabel + '”'} matches “{query.trim()}”. Try a product name or model code, or clear your filters.</>
+                  : <>No products match the current filters. Clear them to browse the full catalogue.</>}
               </p>
               <button className="button button-dark" onClick={clearAll}>Clear filters <X size={15} /></button>
             </div>
@@ -180,8 +219,8 @@ export function ShopPage() {
           <div className="shop-catalogue-status">
             <span className="shop-status-dot" />
             <div>
-              <strong>Product catalogue in progress</strong>
-              <p>These are product categories, not individual stock listings. Upload your catalogue to add verified models, specifications, prices and product photos.</p>
+              <strong>Catalogue prices being updated</strong>
+              <p>Product prices are being added by the store team. Until a price appears here, please confirm pricing and availability on enquiry.</p>
             </div>
           </div>
         </div>

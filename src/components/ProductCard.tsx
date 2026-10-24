@@ -1,13 +1,31 @@
-import { ArrowUpRight, MessageCircle, Package } from 'lucide-react';
+import { ArrowUpRight, MessageCircle, Package, ShoppingBag } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Link, useNavigate } from 'react-router-dom';
 import type { Product } from '../data/products';
 import { productImages } from '../data/product-images';
 import { whatsappEnquiryLink } from '../lib/enquiry';
+import { useCart } from '../lib/cart';
+import { useToast } from './feedback/ToastProvider';
 
 // Shared product card used by the shop catalogue and the category pages,
 // so a product looks and behaves identically wherever it appears.
 export function ProductCard({ product, index = 0 }: { product: Product; index?: number }) {
   const image = productImages[product.slug];
+  const cart = useCart();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const productPath = '/product/' + product.slug;
+
+  const addToBag = () => {
+    cart.add(product);
+    toast.showToast({
+      title: 'Added to bag',
+      description: product.name,
+      actionLabel: 'View bag',
+      onAction: () => navigate('/cart'),
+    });
+  };
+
   return (
     <motion.article
       className="product-card"
@@ -17,7 +35,9 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
     >
       {image ? (
         <div className="product-card-media">
-          <img src={image} alt={product.name} loading="lazy" />
+          <Link to={productPath} aria-label={'View ' + product.name}>
+            <img src={image} alt={product.name} loading="lazy" />
+          </Link>
           {product.code && <span className="product-card-code product-card-code-overlay">{product.code}</span>}
         </div>
       ) : (
@@ -26,7 +46,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
           {product.code && <span className="product-card-code">{product.code}</span>}
         </div>
       )}
-      <h4>{product.name}</h4>
+      <h4><Link to={productPath} className="product-card-name">{product.name}</Link></h4>
       {product.specs.length > 0 && (
         <ul className="product-specs">
           {product.specs.map((spec) => <li key={spec}>{spec}</li>)}
@@ -34,7 +54,10 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       )}
       <div className="product-card-footer">
         <span className="product-price">{product.price === null ? 'Price on request' : '₹' + product.price.toLocaleString('en-IN')}</span>
-        <a href={whatsappEnquiryLink(product.name)} target="_blank" rel="noreferrer" className="shop-card-whatsapp"><MessageCircle size={14} /> Enquire <ArrowUpRight size={14} /></a>
+        <span className="product-card-actions">
+          <button type="button" className="shop-card-bag" onClick={addToBag}><ShoppingBag size={14} /> Add</button>
+          <a href={whatsappEnquiryLink(product.name)} target="_blank" rel="noreferrer" className="shop-card-whatsapp"><MessageCircle size={14} /> Enquire <ArrowUpRight size={14} /></a>
+        </span>
       </div>
     </motion.article>
   );

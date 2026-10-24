@@ -1,7 +1,8 @@
 import {useCallback,useEffect,useRef,useState,type FormEvent,type PropsWithChildren} from 'react';
 import {Link,NavLink,useLocation,useNavigate} from 'react-router-dom';
-import {ArrowRight,ArrowUpRight,Droplets,Menu,Search,ShoppingBag,X} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,Droplets,Menu,Search,ShoppingBag,User,X} from 'lucide-react';
 import {useFocusTrap} from '../accessibility/useFocusTrap';
+import {useCart} from '../../lib/cart';
 
 const navItems = [
   { to: '/shop', label: 'Shop all' },
@@ -14,6 +15,7 @@ const navItems = [
 export function SiteShell({ children }: PropsWithChildren) {
   const location = useLocation();
   const navigate = useNavigate();
+  const cart = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -84,7 +86,8 @@ export function SiteShell({ children }: PropsWithChildren) {
           <button type="button" className="icon-button" aria-label="Search parts" onClick={() => setSearchOpen(true)}>
             <Search size={18} />
           </button>
-          <Link to="/cart" className="button secondary"><ShoppingBag size={16} />Cart</Link>
+          <Link to="/account" className="icon-button" aria-label="Your account"><User size={18} /></Link>
+          <Link to="/cart" className="button secondary cart-button"><ShoppingBag size={16} />Cart{cart.count > 0 && <span className="cart-badge">{cart.count}</span>}</Link>
         </div>
       </header>
 

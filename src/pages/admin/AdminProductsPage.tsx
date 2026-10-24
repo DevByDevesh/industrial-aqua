@@ -18,6 +18,7 @@ import {
 import { LogIn, LogOut, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { auth, db } from '../../lib/firebase/client';
 import { productSections } from '../../data/products';
+import { STORE_ADMIN_EMAIL } from '../../lib/auth';
 
 interface AdminProduct {
   id: string;
@@ -204,6 +205,21 @@ export function AdminProductsPage() {
     setNotice('Product added. It is now live in the shop catalogue.');
     await refresh();
   };
+
+  if (user.email !== STORE_ADMIN_EMAIL) {
+    return (
+      <div className="admin-card">
+        <h2>Not the store admin</h2>
+        <p className="admin-muted">
+          Signed in as {user.email}. Product editing is restricted to the store admin account
+          ({STORE_ADMIN_EMAIL}); Firestore rules enforce this too. Sign out and use the admin account.
+        </p>
+        <button type="button" className="button secondary" onClick={() => void signOut(authReady2)}>
+          <LogOut size={15} /> Sign out
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-products">

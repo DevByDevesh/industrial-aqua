@@ -1,6 +1,6 @@
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from './firebase/client';
-import { cartHasUnpriced, cartPricedTotal, type CartItem } from './cart';
+import { cartHasUnpriced, cartPricedTotal, type CartItem } from './cart-model';
 
 export interface OrderCustomer {
   name: string;

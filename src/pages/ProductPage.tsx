@@ -6,6 +6,7 @@ import { productImages } from '../data/product-images';
 import { categories } from '../data/catalogue';
 import { useProducts } from '../lib/useProducts';
 import { useCart } from '../lib/cart';
+import { MAX_QTY } from '../lib/cart-model';
 import { useToast } from '../components/feedback/ToastProvider';
 import { whatsappEnquiryLink } from '../lib/enquiry';
 import { ProductCard } from '../components/ProductCard';
@@ -142,9 +143,9 @@ export function ProductPage() {
               <button type="button" aria-label="Decrease quantity" onClick={() => setQty((value) => Math.max(1, value - 1))}><Minus size={14} /></button>
               <input aria-label="Quantity" value={qty} inputMode="numeric" onChange={(event) => {
                 const next = parseInt(event.target.value, 10);
-                setQty(Number.isNaN(next) ? 1 : Math.min(99, Math.max(1, next)));
+                setQty(Number.isNaN(next) ? 1 : Math.min(MAX_QTY, Math.max(1, next)));
               }} />
-              <button type="button" aria-label="Increase quantity" onClick={() => setQty((value) => Math.min(99, value + 1))}><Plus size={14} /></button>
+              <button type="button" aria-label="Increase quantity" disabled={qty >= MAX_QTY} onClick={() => setQty((value) => Math.min(MAX_QTY, value + 1))}><Plus size={14} /></button>
             </label>
             <button type="button" className="button button-dark" onClick={addToBag}><ShoppingBag size={15} /> Add to bag</button>
             <a href={whatsappEnquiryLink(product.name)} target="_blank" rel="noreferrer" className="button secondary">

@@ -1,17 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
 import type { Product } from '../data/products';
+import { clampQty, type CartItem } from './cart-model';
 
-// The shopping bag is stored locally in the browser. Prices are snapshots
-// from when an item was added; anything still "Price on request" is
-// confirmed by the store team on WhatsApp before payment — the site never
-// takes payment online.
-export interface CartItem {
-  slug: string;
-  name: string;
-  code?: string;
-  price: number | null;
-  qty: number;
-}
+export type { CartItem } from './cart-model';
 
 interface CartApi {
   items: CartItem[];
@@ -30,7 +21,16 @@ function readStored(): CartItem[] {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as CartItem[];
-    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item.slug === 'string' && item.qty > 0) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (item) =>
+          item &&
+          typeof item.slug === 'string' &&
+          typeof item.name === 'string' &&
+          (item.price === null || (typeof item.price === 'number' && Number.isFinite(item.price) && item.price >= 0)),
+      )
+      .map((item) => ({ ...item, qty: clampQty(item.qty) }));
   } catch {
     return [];
   }
@@ -52,16 +52,17 @@ export function CartProvider({ children }: PropsWithChildren) {
       items,
       count: items.reduce((sum, item) => sum + item.qty, 0),
       add(product, qty = 1) {
+        const addQty = clampQty(qty);
         setItems((current) => {
           const existing = current.find((item) => item.slug === product.slug);
           if (existing) {
             return current.map((item) =>
-              item.slug === product.slug ? { ...item, qty: item.qty + qty } : item,
+              item.slug === product.slug ? { ...item, qty: clampQty(item.qty + addQty) } : item,
             );
           }
           return [
             ...current,
-            { slug: product.slug, name: product.name, code: product.code, price: product.price, qty },
+            { slug: product.slug, name: product.name, code: product.code, price: product.price, qty: addQty },
           ];
         });
       },
@@ -72,7 +73,7 @@ export function CartProvider({ children }: PropsWithChildren) {
         setItems((current) =>
           qty <= 0
             ? current.filter((item) => item.slug !== slug)
-            : current.map((item) => (item.slug === slug ? { ...item, qty } : item)),
+            : current.map((item) => (item.slug === slug ? { ...item, qty: clampQty(qty) } : item)),
         );
       },
       clear() {
@@ -89,13 +90,4 @@ export function useCart(): CartApi {
   const value = useContext(CartContext);
   if (!value) throw new Error('useCart must be used inside CartProvider');
   return value;
-}
-
-/** Known total of the priced items; null when everything is on-request. */
-export function cartPricedTotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + (item.price ?? 0) * item.qty, 0);
-}
-
-export function cartHasUnpriced(items: CartItem[]): boolean {
-  return items.some((item) => item.price === null);
 }

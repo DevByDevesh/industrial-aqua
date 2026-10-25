@@ -1,13 +1,23 @@
 import { useState } from 'react';
-import { ArrowRight, Check, MessageCircle } from 'lucide-react';
+import { ArrowRight, Check, MessageCircle, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { cartHasUnpriced, cartPricedTotal, useCart } from '../lib/cart';
+import { useCart } from '../lib/cart';
+import {
+  reconcileCart,
+  verifiedHasPriced,
+  verifiedHasUnavailable,
+  verifiedHasUnpriced,
+  verifiedItems,
+  verifiedTotal,
+} from '../lib/cart-model';
 import { useAuth } from '../lib/auth';
 import { placeOrder, whatsappOrderLink, type Order } from '../lib/orders';
+import { useProducts } from '../lib/useProducts';
 
 export function CheckoutPage() {
   const cart = useCart();
   const { user } = useAuth();
+  const { products, settled } = useProducts();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -15,7 +25,13 @@ export function CheckoutPage() {
   const [placed, setPlaced] = useState<Order | null>(null);
   const [sending, setSending] = useState(false);
 
-  const pricedTotal = cartPricedTotal(cart.items);
+  // The order is built from prices and availability verified against the
+  // live catalogue — never from the bag's stored snapshots alone.
+  const rows = reconcileCart(cart.items, products);
+  const orderItems = verifiedItems(rows);
+  const pricedTotal = verifiedTotal(rows);
+  const hasPriced = verifiedHasPriced(rows);
+  const hasUnavailable = settled && verifiedHasUnavailable(rows);
 
   if (placed) {
     return (
@@ -54,6 +70,14 @@ export function CheckoutPage() {
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError('');
+    if (!settled) {
+      setError('Still checking the live catalogue — please try again in a moment.');
+      return;
+    }
+    if (hasUnavailable) {
+      setError('Some items in your bag are no longer available. Go back to your bag and remove them first.');
+      return;
+    }
     if (!name.trim() || !phone.trim() || !address.trim()) {
       setError('Please fill your name, phone number and delivery address.');
       return;
@@ -63,16 +87,16 @@ export function CheckoutPage() {
     try {
       let order: Order;
       if (user) {
-        order = await placeOrder(user.uid, user.email ?? '', customer, cart.items);
+        order = await placeOrder(user.uid, user.email ?? '', customer, orderItems);
       } else {
         // Guest order: nothing is stored — the WhatsApp message is the order.
         order = {
           userId: '',
           email: '',
           customer,
-          items: cart.items.map((item) => ({ slug: item.slug, name: item.name, code: item.code, qty: item.qty, price: item.price })),
+          items: orderItems.map((item) => ({ slug: item.slug, name: item.name, code: item.code, qty: item.qty, price: item.price })),
           pricedTotal,
-          hasUnpricedItems: cartHasUnpriced(cart.items),
+          hasUnpricedItems: verifiedHasUnpriced(rows),
           status: 'Sent to store on WhatsApp',
           createdAt: new Date().toISOString(),
         };
@@ -115,24 +139,36 @@ export function CheckoutPage() {
             Delivery address
             <textarea required rows={3} value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="street-address" />
           </label>
+          {hasUnavailable && (
+            <p className="cart-alert" role="alert">
+              <TriangleAlert size={15} /> Some items in your bag are no longer in the catalogue.
+              <Link to="/cart"> Go back to your bag</Link> and remove them to continue.
+            </p>
+          )}
           {error && <p className="admin-error" role="alert">{error}</p>}
-          <button type="submit" className="button button-dark" disabled={sending}>
-            <Check size={15} /> {sending ? 'Preparing…' : 'Prepare my order'}
+          <button type="submit" className="button button-dark" disabled={sending || !settled || hasUnavailable}>
+            <Check size={15} /> {sending ? 'Preparing…' : !settled ? 'Checking the catalogue…' : 'Prepare my order'}
           </button>
           <p className="admin-muted">Next step opens WhatsApp with your order ready to send. No online payment is taken.</p>
         </form>
 
         <aside className="cart-summary">
           <h2>Order summary</h2>
-          {cart.items.map((item) => (
+          {rows.map(({ item, available, price }) => (
             <div key={item.slug} className="cart-summary-row">
               <span>{item.name} × {item.qty}</span>
-              <strong>{item.price === null ? 'On request' : '₹' + (item.price * item.qty).toLocaleString('en-IN')}</strong>
+              <strong>
+                {settled && !available
+                  ? 'No longer available'
+                  : price === null
+                    ? 'On request'
+                    : '₹' + (price * item.qty).toLocaleString('en-IN')}
+              </strong>
             </div>
           ))}
           <div className="cart-summary-row">
             <span>Priced total</span>
-            <strong>{pricedTotal > 0 ? '₹' + pricedTotal.toLocaleString('en-IN') : '—'}</strong>
+            <strong>{hasPriced ? '₹' + pricedTotal.toLocaleString('en-IN') : '—'}</strong>
           </div>
           <p className="admin-muted">Delivery and any price-on-request items are confirmed by the store on WhatsApp.</p>
         </aside>

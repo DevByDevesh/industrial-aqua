@@ -1,12 +1,27 @@
-import { ArrowRight, MessageCircle, Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
+import { ArrowRight, MessageCircle, Minus, Plus, ShoppingBag, Trash2, TriangleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { productImages } from '../data/product-images';
-import { cartHasUnpriced, cartPricedTotal, useCart } from '../lib/cart';
+import { useCart } from '../lib/cart';
+import {
+  MAX_QTY,
+  reconcileCart,
+  verifiedHasUnavailable,
+  verifiedHasPriced,
+  verifiedHasUnpriced,
+  verifiedTotal,
+} from '../lib/cart-model';
+import { useProducts } from '../lib/useProducts';
 
 export function CartPage() {
   const cart = useCart();
-  const pricedTotal = cartPricedTotal(cart.items);
-  const hasUnpriced = cartHasUnpriced(cart.items);
+  const { products, settled } = useProducts();
+  // Prices and availability are verified against the live catalogue; the
+  // stored snapshot is only a fallback until the live load settles.
+  const rows = reconcileCart(cart.items, products);
+  const pricedTotal = verifiedTotal(rows);
+  const hasPriced = verifiedHasPriced(rows);
+  const hasUnpriced = verifiedHasUnpriced(rows);
+  const hasUnavailable = settled && verifiedHasUnavailable(rows);
 
   return (
     <div className="shop-page">
@@ -33,28 +48,54 @@ export function CartPage() {
         ) : (
           <>
             <div className="cart-list">
-              {cart.items.map((item) => {
+              {hasUnavailable && (
+                <p className="cart-alert" role="alert">
+                  <TriangleAlert size={15} /> One or more items below are no longer in the catalogue. Remove them
+                  to continue — they are not included in the total.
+                </p>
+              )}
+              {rows.map(({ item, available, price, priceChanged }) => {
                 const image = productImages[item.slug];
+                const isUnavailable = settled && !available;
                 return (
-                  <article key={item.slug} className="cart-row">
+                  <article key={item.slug} className={'cart-row' + (isUnavailable ? ' cart-row-unavailable' : '')}>
                     <Link to={'/product/' + item.slug} className="cart-thumb">
                       {image ? <img src={image} alt={item.name} loading="lazy" /> : <ShoppingBag size={20} />}
                     </Link>
                     <div className="cart-info">
                       <h3><Link to={'/product/' + item.slug}>{item.name}</Link></h3>
                       {item.code && <span className="product-card-code">{item.code}</span>}
-                      <span className="cart-price">
-                        {item.price === null ? 'Price on request' : '₹' + (item.price * item.qty).toLocaleString('en-IN')}
-                      </span>
+                      {isUnavailable ? (
+                        <span className="cart-unavailable-note">No longer available in the catalogue</span>
+                      ) : (
+                        <span className="cart-price">
+                          {price === null ? 'Price on request' : '₹' + (price * item.qty).toLocaleString('en-IN')}
+                          {settled && priceChanged && <span className="cart-price-note"> Price updated</span>}
+                        </span>
+                      )}
                     </div>
                     <label className="qty-control">
                       <span className="sr-only">Quantity for {item.name}</span>
-                      <button type="button" aria-label={'Decrease quantity of ' + item.name} onClick={() => cart.setQty(item.slug, item.qty - 1)}><Minus size={14} /></button>
-                      <input aria-label={'Quantity for ' + item.name} value={item.qty} inputMode="numeric" onChange={(event) => {
-                        const next = parseInt(event.target.value, 10);
-                        if (!Number.isNaN(next)) cart.setQty(item.slug, next);
-                      }} />
-                      <button type="button" aria-label={'Increase quantity of ' + item.name} onClick={() => cart.setQty(item.slug, item.qty + 1)}><Plus size={14} /></button>
+                      <button
+                        type="button"
+                        aria-label={item.qty <= 1 ? 'Remove ' + item.name : 'Decrease quantity of ' + item.name}
+                        onClick={() => cart.setQty(item.slug, item.qty - 1)}
+                      ><Minus size={14} /></button>
+                      <input
+                        aria-label={'Quantity for ' + item.name}
+                        value={item.qty}
+                        inputMode="numeric"
+                        onChange={(event) => {
+                          const next = parseInt(event.target.value, 10);
+                          if (!Number.isNaN(next) && next >= 1) cart.setQty(item.slug, Math.min(MAX_QTY, next));
+                        }}
+                      />
+                      <button
+                        type="button"
+                        aria-label={'Increase quantity of ' + item.name}
+                        disabled={item.qty >= MAX_QTY}
+                        onClick={() => cart.setQty(item.slug, item.qty + 1)}
+                      ><Plus size={14} /></button>
                     </label>
                     <button type="button" className="admin-delete" aria-label={'Remove ' + item.name} onClick={() => cart.remove(item.slug)}>
                       <Trash2 size={15} />
@@ -67,8 +108,8 @@ export function CartPage() {
             <aside className="cart-summary">
               <h2>Order summary</h2>
               <div className="cart-summary-row">
-                <span>Priced items</span>
-                <strong>{pricedTotal > 0 ? '₹' + pricedTotal.toLocaleString('en-IN') : '—'}</strong>
+                <span>Subtotal (priced items)</span>
+                <strong>{hasPriced ? '₹' + pricedTotal.toLocaleString('en-IN') : '—'}</strong>
               </div>
               {hasUnpriced && (
                 <p className="admin-muted">Some items are price-on-request. The store confirms their prices on WhatsApp before you pay anything.</p>
@@ -77,11 +118,17 @@ export function CartPage() {
                 <span>Delivery</span>
                 <strong>Confirmed on order</strong>
               </div>
-              <Link to="/checkout" className="button button-dark cart-checkout">
-                <MessageCircle size={15} /> Proceed to place order
-              </Link>
+              {hasUnavailable ? (
+                <p className="cart-alert" role="alert">
+                  <TriangleAlert size={15} /> Remove the unavailable items above before placing your order.
+                </p>
+              ) : (
+                <Link to="/checkout" className="button button-dark cart-checkout">
+                  <MessageCircle size={15} /> Proceed to place order
+                </Link>
+              )}
               <button type="button" className="shop-clear-filters" onClick={cart.clear}>Clear bag</button>
-              <p className="admin-muted">Orders are confirmed personally by the store team on WhatsApp — nothing is charged online.</p>
+              <p className="admin-muted">Orders are confirmed personally by the store team on WhatsApp — nothing is charged online, and adding an item here does not reserve it.</p>
             </aside>
           </>
         )}

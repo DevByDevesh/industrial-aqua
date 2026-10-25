@@ -223,3 +223,6 @@
 .cart-unavailable-note{display:block;font-size:12px;font-weight:700;color:#a33b2e;margin-top:4px}
 .cart-price-note{font-size:11px;font-weight:700;color:#2e6b34}
 .qty-control button:disabled{opacity:.4;cursor:not-allowed}
+.admin-row span>input+input{margin-top:6px}
+.order-status-edit select{padding:7px 9px;border:1px solid #dcded5;border-radius:10px;background:#fffefa;color:#171b19;font-size:12px;font-family:inherit}
+.shop-card-bag:disabled{opacity:.55;cursor:not-allowed}

@@ -53,28 +53,54 @@ export interface VerifiedCartItem {
   price: number | null;
   /** True when the verified price differs from the stored snapshot. */
   priceChanged: boolean;
+  /** Tracked stock from the live catalogue; null when stock is not tracked. */
+  stock: number | null;
+  /** True when stock is tracked and has run out. */
+  outOfStock: boolean;
+  /** True when stock is tracked and the bag quantity exceeds it. */
+  exceedsStock: boolean;
 }
 
 export function reconcileCart(items: CartItem[], products: Product[]): VerifiedCartItem[] {
   const bySlug = new Map(products.map((product) => [product.slug, product]));
   return items.map((item) => {
     const live = bySlug.get(item.slug);
-    if (!live) return { item, available: false, price: item.price, priceChanged: false };
-    return { item, available: true, price: live.price, priceChanged: live.price !== item.price };
+    if (!live) {
+      return { item, available: false, price: item.price, priceChanged: false, stock: null, outOfStock: false, exceedsStock: false };
+    }
+    const stock = typeof live.stock === 'number' ? live.stock : null;
+    return {
+      item,
+      available: true,
+      price: live.price,
+      priceChanged: live.price !== item.price,
+      stock,
+      outOfStock: stock !== null && stock <= 0,
+      exceedsStock: stock !== null && stock > 0 && item.qty > stock,
+    };
   });
 }
 
-/** Subtotal of available items at their verified prices. */
+/** Rows that may proceed to checkout: present in the catalogue and in stock. */
+export function verifiedHasBlocked(rows: VerifiedCartItem[]): boolean {
+  return rows.some((row) => !row.available || row.outOfStock || row.exceedsStock);
+}
+
+function purchasable(row: VerifiedCartItem): boolean {
+  return row.available && !row.outOfStock && !row.exceedsStock;
+}
+
+/** Subtotal of purchasable items at their verified prices. */
 export function verifiedTotal(rows: VerifiedCartItem[]): number {
-  return rows.reduce((sum, row) => sum + (row.available ? (row.price ?? 0) * row.item.qty : 0), 0);
+  return rows.reduce((sum, row) => sum + (purchasable(row) ? (row.price ?? 0) * row.item.qty : 0), 0);
 }
 
 export function verifiedHasPriced(rows: VerifiedCartItem[]): boolean {
-  return rows.some((row) => row.available && row.price !== null);
+  return rows.some((row) => purchasable(row) && row.price !== null);
 }
 
 export function verifiedHasUnpriced(rows: VerifiedCartItem[]): boolean {
-  return rows.some((row) => row.available && row.price === null);
+  return rows.some((row) => purchasable(row) && row.price === null);
 }
 
 export function verifiedHasUnavailable(rows: VerifiedCartItem[]): boolean {
@@ -83,5 +109,5 @@ export function verifiedHasUnavailable(rows: VerifiedCartItem[]): boolean {
 
 /** Cart items with verified prices merged in — what checkout should carry. */
 export function verifiedItems(rows: VerifiedCartItem[]): CartItem[] {
-  return rows.filter((row) => row.available).map((row) => ({ ...row.item, price: row.price }));
+  return rows.filter(purchasable).map((row) => ({ ...row.item, price: row.price }));
 }

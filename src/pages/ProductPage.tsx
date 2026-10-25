@@ -112,7 +112,13 @@ export function ProductPage() {
             </div>
             <div>
               <dt>Stock</dt>
-              <dd>Confirmed on enquiry — live stock levels are not published.</dd>
+              <dd>
+                {typeof product.stock === 'number'
+                  ? product.stock > 0
+                    ? 'In stock — ' + product.stock + ' available'
+                    : 'Out of stock — enquire on WhatsApp for the next availability.'
+                  : 'Confirmed on enquiry — live stock levels are not published.'}
+              </dd>
             </div>
           </dl>
           {product.description && (
@@ -147,7 +153,7 @@ export function ProductPage() {
               }} />
               <button type="button" aria-label="Increase quantity" disabled={qty >= MAX_QTY} onClick={() => setQty((value) => Math.min(MAX_QTY, value + 1))}><Plus size={14} /></button>
             </label>
-            <button type="button" className="button button-dark" onClick={addToBag}><ShoppingBag size={15} /> Add to bag</button>
+            <button type="button" className="button button-dark" onClick={addToBag} disabled={product.stock === 0}><ShoppingBag size={15} /> {product.stock === 0 ? 'Out of stock' : 'Add to bag'}</button>
             <a href={whatsappEnquiryLink(product.name)} target="_blank" rel="noreferrer" className="button secondary">
               <MessageCircle size={15} /> Enquire on WhatsApp
             </a>

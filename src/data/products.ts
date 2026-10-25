@@ -31,6 +31,10 @@ export interface Product {
   description?: string
   /** Always null for now — the client sets prices himself later. */
   price: number | null
+  /** Tracked inventory, only when the business supplies and maintains it
+   * via the admin. null/absent = stock is not tracked for this product and
+   * availability is confirmed on enquiry. Never invent a stock level. */
+  stock?: number | null
 }
 
 export const productSections: ProductSection[] = [

@@ -5,7 +5,7 @@ import { useCart } from '../lib/cart';
 import {
   MAX_QTY,
   reconcileCart,
-  verifiedHasUnavailable,
+  verifiedHasBlocked,
   verifiedHasPriced,
   verifiedHasUnpriced,
   verifiedTotal,
@@ -21,7 +21,7 @@ export function CartPage() {
   const pricedTotal = verifiedTotal(rows);
   const hasPriced = verifiedHasPriced(rows);
   const hasUnpriced = verifiedHasUnpriced(rows);
-  const hasUnavailable = settled && verifiedHasUnavailable(rows);
+  const hasBlocked = settled && verifiedHasBlocked(rows);
 
   return (
     <div className="shop-page">
@@ -48,17 +48,19 @@ export function CartPage() {
         ) : (
           <>
             <div className="cart-list">
-              {hasUnavailable && (
+              {hasBlocked && (
                 <p className="cart-alert" role="alert">
-                  <TriangleAlert size={15} /> One or more items below are no longer in the catalogue. Remove them
-                  to continue — they are not included in the total.
+                  <TriangleAlert size={15} /> One or more items below cannot be ordered as they stand —
+                  they are not included in the total. Fix the quantity or remove them to continue.
                 </p>
               )}
-              {rows.map(({ item, available, price, priceChanged }) => {
+              {rows.map(({ item, available, price, priceChanged, stock, outOfStock, exceedsStock }) => {
                 const image = productImages[item.slug];
                 const isUnavailable = settled && !available;
+                const isOut = settled && outOfStock;
+                const isOver = settled && exceedsStock;
                 return (
-                  <article key={item.slug} className={'cart-row' + (isUnavailable ? ' cart-row-unavailable' : '')}>
+                  <article key={item.slug} className={'cart-row' + (isUnavailable || isOut ? ' cart-row-unavailable' : '')}>
                     <Link to={'/product/' + item.slug} className="cart-thumb">
                       {image ? <img src={image} alt={item.name} loading="lazy" /> : <ShoppingBag size={20} />}
                     </Link>
@@ -67,10 +69,13 @@ export function CartPage() {
                       {item.code && <span className="product-card-code">{item.code}</span>}
                       {isUnavailable ? (
                         <span className="cart-unavailable-note">No longer available in the catalogue</span>
+                      ) : isOut ? (
+                        <span className="cart-unavailable-note">Out of stock</span>
                       ) : (
                         <span className="cart-price">
                           {price === null ? 'Price on request' : '₹' + (price * item.qty).toLocaleString('en-IN')}
                           {settled && priceChanged && <span className="cart-price-note"> Price updated</span>}
+                          {isOver && <span className="cart-unavailable-note"> Only {stock} in stock — reduce the quantity</span>}
                         </span>
                       )}
                     </div>
@@ -118,9 +123,9 @@ export function CartPage() {
                 <span>Delivery</span>
                 <strong>Confirmed on order</strong>
               </div>
-              {hasUnavailable ? (
+              {hasBlocked ? (
                 <p className="cart-alert" role="alert">
-                  <TriangleAlert size={15} /> Remove the unavailable items above before placing your order.
+                  <TriangleAlert size={15} /> Fix the flagged items above before placing your order.
                 </p>
               ) : (
                 <Link to="/checkout" className="button button-dark cart-checkout">

@@ -28,6 +28,7 @@ interface AdminProduct {
   subsection?: string;
   specs: string[];
   price: number | null;
+  stock: number | null;
   order: number;
 }
 
@@ -50,7 +51,7 @@ export function AdminProductsPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [notice, setNotice] = useState('');
-  const [drafts, setDrafts] = useState<Record<string, { name: string; price: string; specs: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { name: string; price: string; stock: string; specs: string }>>({});
 
   const [newName, setNewName] = useState('');
   const [newCode, setNewCode] = useState('');
@@ -58,6 +59,7 @@ export function AdminProductsPage() {
   const [newSubsection, setNewSubsection] = useState('');
   const [newSpecs, setNewSpecs] = useState('');
   const [newPrice, setNewPrice] = useState('');
+  const [newStock, setNewStock] = useState('');
 
   useEffect(() => {
     if (!auth) {
@@ -86,6 +88,7 @@ export function AdminProductsPage() {
             subsection: typeof data.subsection === 'string' ? data.subsection : undefined,
             specs: Array.isArray(data.specs) ? data.specs.map(String) : [],
             price: typeof data.price === 'number' ? data.price : null,
+            stock: typeof data.stock === 'number' ? data.stock : null,
             order: typeof data.order === 'number' ? data.order : 0,
           };
         }),
@@ -151,7 +154,12 @@ export function AdminProductsPage() {
   }
 
   const draftOf = (item: AdminProduct) =>
-    drafts[item.id] ?? { name: item.name, price: item.price === null ? '' : String(item.price), specs: item.specs.join('\n') };
+    drafts[item.id] ?? {
+      name: item.name,
+      price: item.price === null ? '' : String(item.price),
+      stock: item.stock === null ? '' : String(item.stock),
+      specs: item.specs.join('\n'),
+    };
 
   const saveItem = async (item: AdminProduct) => {
     if (!db) return;
@@ -161,9 +169,15 @@ export function AdminProductsPage() {
       setNotice('Price must be a number (or blank) for ' + item.name);
       return;
     }
+    const stock = draft.stock.trim() === '' ? null : Number(draft.stock);
+    if (stock !== null && (Number.isNaN(stock) || stock < 0 || Math.trunc(stock) !== stock)) {
+      setNotice('Stock must be a whole number (or blank = not tracked) for ' + item.name);
+      return;
+    }
     await updateDoc(doc(db, 'products', item.id), {
       name: draft.name.trim() || item.name,
       price,
+      stock,
       specs: draft.specs.split('\n').map((line) => line.trim()).filter(Boolean),
       updatedAt: new Date().toISOString(),
     });
@@ -185,12 +199,18 @@ export function AdminProductsPage() {
       setNotice('New product price must be a number (or blank).');
       return;
     }
+    const stock = newStock.trim() === '' ? null : Number(newStock);
+    if (stock !== null && (Number.isNaN(stock) || stock < 0 || Math.trunc(stock) !== stock)) {
+      setNotice('New product stock must be a whole number (or blank = not tracked).');
+      return;
+    }
     const docData: Record<string, unknown> = {
       slug,
       name: newName.trim(),
       section: newSection,
       specs: newSpecs.split('\n').map((line) => line.trim()).filter(Boolean),
       price,
+      stock,
       order: sectionIndex * 1000 + 900 + Math.floor(Math.random() * 90),
       updatedAt: new Date().toISOString(),
     };
@@ -202,6 +222,7 @@ export function AdminProductsPage() {
     setNewSubsection('');
     setNewSpecs('');
     setNewPrice('');
+    setNewStock('');
     setNotice('Product added. It is now live in the shop catalogue.');
     await refresh();
   };
@@ -261,7 +282,7 @@ export function AdminProductsPage() {
           </div>
           {visible.map((item) => {
             const draft = draftOf(item);
-            const dirty = draft.name !== item.name || draft.price !== (item.price === null ? '' : String(item.price)) || draft.specs !== item.specs.join('\n');
+            const dirty = draft.name !== item.name || draft.price !== (item.price === null ? '' : String(item.price)) || draft.stock !== (item.stock === null ? '' : String(item.stock)) || draft.specs !== item.specs.join('\n');
             return (
               <div className="admin-row" role="row" key={item.id}>
                 <span>
@@ -283,6 +304,13 @@ export function AdminProductsPage() {
                     value={draft.price}
                     placeholder="Blank"
                     onChange={(event) => setDrafts((prev) => ({ ...prev, [item.id]: { ...draftOf(item), price: event.target.value } }))}
+                  />
+                  <input
+                    aria-label={'Stock for ' + item.name}
+                    inputMode="numeric"
+                    value={draft.stock}
+                    placeholder="Stock: not tracked"
+                    onChange={(event) => setDrafts((prev) => ({ ...prev, [item.id]: { ...draftOf(item), stock: event.target.value } }))}
                   />
                 </span>
                 <span>
@@ -352,6 +380,10 @@ export function AdminProductsPage() {
           <label>
             Price ₹ (optional, blank = on request)
             <input inputMode="decimal" value={newPrice} onChange={(event) => setNewPrice(event.target.value)} />
+          </label>
+          <label>
+            Stock (optional, blank = not tracked)
+            <input inputMode="numeric" value={newStock} onChange={(event) => setNewStock(event.target.value)} />
           </label>
           <label>
             Specs (one per line, optional)

@@ -4,7 +4,15 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase/client';
 import { STORE_ADMIN_EMAIL, useAuth } from '../../lib/auth';
-import type { Order } from '../../lib/orders';
+import { ORDER_STATUSES, updateOrderStatus, type Order, type OrderStatus } from '../../lib/orders';
+
+function fetchErrorText(error: unknown): string {
+  const code = (error as { code?: string })?.code ?? '';
+  if (code.includes('permission-denied')) {
+    return 'Permission denied by the Firestore security rules. The tightened rules may not be published yet, or this account is not the store admin.';
+  }
+  return 'Could not load data from Firestore. Check the connection and try again.';
+}
 
 function AdminGate({ children }: { children: React.ReactNode }) {
   const { user, ready, isAdmin } = useAuth();
@@ -37,6 +45,7 @@ async function fetchAllOrders(): Promise<Order[]> {
 export function AdminOverviewPage() {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -49,10 +58,11 @@ export function AdminOverviewPage() {
         if (cancelled) return;
         setOrders(orderList);
         setProductCount(productSnap ? productSnap.size : null);
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setOrders([]);
           setProductCount(null);
+          setLoadError(fetchErrorText(error));
         }
       }
     })();
@@ -73,6 +83,7 @@ export function AdminOverviewPage() {
         </div>
         <Link to="/admin/orders" className="button button-dark"><ClipboardList size={15} /> View orders</Link>
       </div>
+      {loadError && <p className="admin-error" role="alert">{loadError}</p>}
       <div className="admin-stats">
         <div className="admin-stat">
           <span className="admin-stat-icon"><Boxes size={17} /></span>
@@ -109,6 +120,8 @@ export function AdminOverviewPage() {
 
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -116,13 +129,29 @@ export function AdminOrdersPage() {
       .then((list) => {
         if (!cancelled) setOrders(list);
       })
-      .catch(() => {
-        if (!cancelled) setOrders([]);
+      .catch((error) => {
+        if (!cancelled) {
+          setOrders([]);
+          setLoadError(fetchErrorText(error));
+        }
       });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const changeStatus = async (order: Order, status: OrderStatus) => {
+    if (!order.id) return;
+    setStatusError('');
+    try {
+      await updateOrderStatus(order.id, status);
+      setOrders((current) =>
+        current?.map((entry) => (entry.id === order.id ? { ...entry, status, updatedAt: new Date().toISOString() } : entry)) ?? current,
+      );
+    } catch (error) {
+      setStatusError(fetchErrorText(error));
+    }
+  };
 
   return (
     <AdminGate>
@@ -133,9 +162,11 @@ export function AdminOrdersPage() {
           <p>Orders placed by signed-in customers. Each customer also sends the same order to the store WhatsApp — confirm and fulfil from there.</p>
         </div>
       </div>
+      {loadError && <p className="admin-error" role="alert">{loadError}</p>}
+      {statusError && <p className="admin-error" role="alert">{statusError}</p>}
       {orders === null ? (
         <p className="admin-muted">Loading orders…</p>
-      ) : orders.length === 0 ? (
+      ) : orders.length === 0 && !loadError ? (
         <div className="admin-card">
           <h2>No orders yet</h2>
           <p className="admin-muted">Orders placed by signed-in customers will appear here. Guest orders arrive only on WhatsApp.</p>
@@ -146,7 +177,20 @@ export function AdminOrdersPage() {
             <article key={order.id} className="order-card">
               <div className="order-card-head">
                 <strong>{order.customer.name}</strong>
-                <span className="status-chip"><span />{order.status}</span>
+                <label className="order-status-edit">
+                  <span className="sr-only">Order status for {order.customer.name}</span>
+                  <select
+                    value={order.status}
+                    onChange={(event) => void changeStatus(order, event.target.value as OrderStatus)}
+                  >
+                    {ORDER_STATUSES.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                    {!ORDER_STATUSES.includes(order.status as OrderStatus) && (
+                      <option value={order.status}>{order.status}</option>
+                    )}
+                  </select>
+                </label>
               </div>
               <p className="admin-muted">
                 {new Date(order.createdAt).toLocaleString('en-IN')} · {order.customer.phone} · {order.email}

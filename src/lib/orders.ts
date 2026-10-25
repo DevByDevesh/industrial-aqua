@@ -1,4 +1,4 @@
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase/client';
 import { cartHasUnpriced, cartPricedTotal, type CartItem } from './cart-model';
 
@@ -7,6 +7,20 @@ export interface OrderCustomer {
   phone: string;
   address: string;
 }
+
+/** The order lifecycle. A customer creates an order in the initial status;
+ * only the store admin moves it forward (enforced in firestore.rules).
+ * There is deliberately no payment status: the site takes no online
+ * payment, so no client-writable field may claim one. */
+export const ORDER_STATUSES = [
+  'Sent to store on WhatsApp',
+  'Confirmed by store',
+  'Out for delivery',
+  'Delivered',
+  'Cancelled',
+] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export const INITIAL_ORDER_STATUS: OrderStatus = ORDER_STATUSES[0];
 
 export interface Order {
   id?: string;
@@ -18,6 +32,7 @@ export interface Order {
   hasUnpricedItems: boolean;
   status: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export async function placeOrder(
@@ -27,6 +42,7 @@ export async function placeOrder(
   items: CartItem[],
 ): Promise<Order> {
   if (!db) throw new Error('Orders are unavailable right now.');
+  const now = new Date().toISOString();
   const order: Order = {
     userId,
     email,
@@ -40,11 +56,19 @@ export async function placeOrder(
     })),
     pricedTotal: cartPricedTotal(items),
     hasUnpricedItems: cartHasUnpriced(items),
-    status: 'Sent to store on WhatsApp',
-    createdAt: new Date().toISOString(),
+    status: INITIAL_ORDER_STATUS,
+    createdAt: now,
+    updatedAt: now,
   };
   const ref = await addDoc(collection(db, 'orders'), order);
   return { ...order, id: ref.id };
+}
+
+/** Admin only (firestore.rules enforces it): move an order to a new status.
+ * Only `status` and `updatedAt` change — totals and items are immutable. */
+export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+  if (!db) throw new Error('Orders are unavailable right now.');
+  await updateDoc(doc(db, 'orders', orderId), { status, updatedAt: new Date().toISOString() });
 }
 
 // Builds the WhatsApp order message link to the store's business number.

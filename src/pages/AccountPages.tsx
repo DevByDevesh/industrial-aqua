@@ -180,6 +180,7 @@ export function OrdersPage() {
   const { user, ready } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     if (!ready) return;
@@ -196,8 +197,16 @@ export function OrdersPage() {
         if (!cancelled) {
           setOrders(snap.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Order) })));
         }
-      } catch {
-        if (!cancelled) setOrders([]);
+      } catch (error) {
+        if (!cancelled) {
+          setOrders([]);
+          const code = (error as { code?: string })?.code ?? '';
+          setLoadError(
+            code.includes('permission-denied')
+              ? 'Your orders could not be loaded — access was denied. Please try again later; the store team can also see your order on WhatsApp.'
+              : 'Your orders could not be loaded. Check your connection and refresh the page.',
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -221,7 +230,8 @@ export function OrdersPage() {
 
   return (
     <AccountShell title="Your orders" intro="Orders you placed while signed in. The store confirms each order personally on WhatsApp.">
-      {orders.length === 0 ? (
+      {loadError && <p className="admin-error" role="alert">{loadError}</p>}
+      {orders.length === 0 && !loadError ? (
         <div className="shop-empty" role="status">
           <span className="shop-empty-icon"><ClipboardList size={22} /></span>
           <h3>No orders yet</h3>

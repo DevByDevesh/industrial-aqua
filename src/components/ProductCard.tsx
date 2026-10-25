@@ -55,7 +55,7 @@ export function ProductCard({ product, index = 0 }: { product: Product; index?: 
       <div className="product-card-footer">
         <span className="product-price">{product.price === null ? 'Price on request' : '₹' + product.price.toLocaleString('en-IN')}</span>
         <span className="product-card-actions">
-          <button type="button" className="shop-card-bag" onClick={addToBag}><ShoppingBag size={14} /> Add</button>
+          <button type="button" className="shop-card-bag" onClick={addToBag} disabled={product.stock === 0}><ShoppingBag size={14} /> {product.stock === 0 ? 'Out of stock' : 'Add'}</button>
           <a href={whatsappEnquiryLink(product.name)} target="_blank" rel="noreferrer" className="shop-card-whatsapp"><MessageCircle size={14} /> Enquire <ArrowUpRight size={14} /></a>
         </span>
       </div>

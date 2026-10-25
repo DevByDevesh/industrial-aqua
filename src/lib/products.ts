@@ -23,6 +23,7 @@ export async function loadProducts(): Promise<Product[] | null> {
         specs: Array.isArray(data.specs) ? data.specs.map(String) : [],
         description: typeof data.description === 'string' && data.description.trim() ? data.description : undefined,
         price: typeof data.price === 'number' ? data.price : null,
+        stock: typeof data.stock === 'number' && Number.isFinite(data.stock) && data.stock >= 0 ? Math.trunc(data.stock) : null,
       } satisfies Product;
     });
   } catch {

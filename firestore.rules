@@ -1,0 +1,121 @@
+rules_version = '2';
+
+// Industrial Aqua — Firestore security rules (source of truth, versioned
+// with the site). Publish via Firebase Console (Firestore Database → Rules)
+// or `firebase deploy --only firestore:rules` — see docs/firebase-setup.md.
+//
+// Model:
+// - products: public read; writes only by the store admin account, and
+//   every write must match the product schema (no invented fields, no
+//   negative prices or stock).
+// - orders: a signed-in customer creates an order only for themselves, in
+//   the initial status, with a strictly validated shape. Customers read
+//   only their own orders. Only the admin can change an order afterwards,
+//   and only its status (+ updatedAt) — items and totals are immutable.
+//   There is no payment field anywhere: the site takes no online payment,
+//   so nothing a client sends can mark an order as paid.
+// - everything else: denied.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'yadavrajan7572@gmail.com';
+    }
+
+    // ---------------- products ----------------
+
+    function validProduct(data) {
+      return data.keys().hasOnly([
+          'slug', 'name', 'code', 'section', 'subsection', 'specs',
+          'description', 'price', 'stock', 'order', 'updatedAt'
+        ])
+        && data.keys().hasAll(['slug', 'name', 'section', 'specs', 'price'])
+        && data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.section is string && data.section.size() > 0 && data.section.size() <= 60
+        && (!('code' in data) || (data.code is string && data.code.size() <= 60))
+        && (!('subsection' in data) || (data.subsection is string && data.subsection.size() <= 80))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 4000))
+        && data.specs is list && data.specs.size() <= 30
+        && (data.price == null || (data.price is number && data.price >= 0))
+        && (!('stock' in data) || data.stock == null || (data.stock is int && data.stock >= 0))
+        && (!('order' in data) || data.order is number)
+        && (!('updatedAt' in data) || data.updatedAt is string);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && validProduct(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // ---------------- orders ----------------
+
+    function validItem(item) {
+      return item is map
+        && item.keys().hasOnly(['slug', 'name', 'code', 'qty', 'price'])
+        && item.keys().hasAll(['slug', 'name', 'qty', 'price'])
+        && item.slug is string && item.slug.size() > 0 && item.slug.size() <= 200
+        && item.name is string && item.name.size() > 0 && item.name.size() <= 200
+        && (!('code' in item) || (item.code is string && item.code.size() <= 60))
+        && item.qty is int && item.qty >= 1 && item.qty <= 99
+        && (item.price == null || (item.price is number && item.price >= 0));
+    }
+
+    function validItems(items, count) {
+      return count == 0 || (validItem(items[count - 1]) && validItems(items, count - 1));
+    }
+
+    function validNewOrder(data) {
+      return data.keys().hasOnly([
+          'userId', 'email', 'customer', 'items', 'pricedTotal',
+          'hasUnpricedItems', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'userId', 'email', 'customer', 'items', 'pricedTotal',
+          'hasUnpricedItems', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.userId == request.auth.uid
+        && data.email == request.auth.token.email
+        && data.status == 'Sent to store on WhatsApp'
+        && data.customer is map
+        && data.customer.keys().hasOnly(['name', 'phone', 'address'])
+        && data.customer.keys().hasAll(['name', 'phone', 'address'])
+        && data.customer.name is string && data.customer.name.size() > 0 && data.customer.name.size() <= 120
+        && data.customer.phone is string && data.customer.phone.size() > 0 && data.customer.phone.size() <= 30
+        && data.customer.address is string && data.customer.address.size() > 0 && data.customer.address.size() <= 600
+        && data.items is list && data.items.size() >= 1 && data.items.size() <= 50
+        && validItems(data.items, data.items.size())
+        && data.pricedTotal is number && data.pricedTotal >= 0
+        && data.hasUnpricedItems is bool
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn() && validNewOrder(request.resource.data);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'updatedAt'])
+        && request.resource.data.status in [
+             'Sent to store on WhatsApp', 'Confirmed by store',
+             'Out for delivery', 'Delivered', 'Cancelled'
+           ]
+        && request.resource.data.updatedAt is string;
+      allow delete: if isAdmin();
+    }
+
+    // ---------------- everything else ----------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,8 +4,8 @@ import { Link } from 'react-router-dom';
 import { useCart } from '../lib/cart';
 import {
   reconcileCart,
+  verifiedHasBlocked,
   verifiedHasPriced,
-  verifiedHasUnavailable,
   verifiedHasUnpriced,
   verifiedItems,
   verifiedTotal,
@@ -31,7 +31,7 @@ export function CheckoutPage() {
   const orderItems = verifiedItems(rows);
   const pricedTotal = verifiedTotal(rows);
   const hasPriced = verifiedHasPriced(rows);
-  const hasUnavailable = settled && verifiedHasUnavailable(rows);
+  const hasBlocked = settled && verifiedHasBlocked(rows);
 
   if (placed) {
     return (
@@ -74,8 +74,8 @@ export function CheckoutPage() {
       setError('Still checking the live catalogue — please try again in a moment.');
       return;
     }
-    if (hasUnavailable) {
-      setError('Some items in your bag are no longer available. Go back to your bag and remove them first.');
+    if (hasBlocked) {
+      setError('Some items in your bag cannot be ordered as they stand (removed from the catalogue, out of stock, or more than the available stock). Go back to your bag and fix them first.');
       return;
     }
     if (!name.trim() || !phone.trim() || !address.trim()) {
@@ -139,14 +139,14 @@ export function CheckoutPage() {
             Delivery address
             <textarea required rows={3} value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="street-address" />
           </label>
-          {hasUnavailable && (
+          {hasBlocked && (
             <p className="cart-alert" role="alert">
-              <TriangleAlert size={15} /> Some items in your bag are no longer in the catalogue.
-              <Link to="/cart"> Go back to your bag</Link> and remove them to continue.
+              <TriangleAlert size={15} /> Some items in your bag cannot be ordered as they stand.
+              <Link to="/cart"> Go back to your bag</Link> to fix them and continue.
             </p>
           )}
           {error && <p className="admin-error" role="alert">{error}</p>}
-          <button type="submit" className="button button-dark" disabled={sending || !settled || hasUnavailable}>
+          <button type="submit" className="button button-dark" disabled={sending || !settled || hasBlocked}>
             <Check size={15} /> {sending ? 'Preparing…' : !settled ? 'Checking the catalogue…' : 'Prepare my order'}
           </button>
           <p className="admin-muted">Next step opens WhatsApp with your order ready to send. No online payment is taken.</p>
@@ -154,15 +154,19 @@ export function CheckoutPage() {
 
         <aside className="cart-summary">
           <h2>Order summary</h2>
-          {rows.map(({ item, available, price }) => (
+          {rows.map(({ item, available, price, outOfStock, exceedsStock, stock }) => (
             <div key={item.slug} className="cart-summary-row">
               <span>{item.name} × {item.qty}</span>
               <strong>
                 {settled && !available
                   ? 'No longer available'
-                  : price === null
-                    ? 'On request'
-                    : '₹' + (price * item.qty).toLocaleString('en-IN')}
+                  : settled && outOfStock
+                    ? 'Out of stock'
+                    : settled && exceedsStock
+                      ? 'Only ' + stock + ' in stock'
+                      : price === null
+                        ? 'On request'
+                        : '₹' + (price * item.qty).toLocaleString('en-IN')}
               </strong>
             </div>
           ))}

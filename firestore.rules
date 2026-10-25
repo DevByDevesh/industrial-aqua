@@ -67,8 +67,11 @@ service cloud.firestore {
         && (item.price == null || (item.price is number && item.price >= 0));
     }
 
-    function validItems(items, count) {
-      return count == 0 || (validItem(items[count - 1]) && validItems(items, count - 1));
+    // Firestore rules forbid recursive calls, so per-item validation is
+    // unrolled: validItemAt passes for indexes beyond the list size, and
+    // the create check below chains it for the maximum 50 items.
+    function validItemAt(items, i) {
+      return i >= items.size() || validItem(items[i]);
     }
 
     function validNewOrder(data) {
@@ -91,7 +94,56 @@ service cloud.firestore {
         && data.customer.phone is string && data.customer.phone.size() > 0 && data.customer.phone.size() <= 30
         && data.customer.address is string && data.customer.address.size() > 0 && data.customer.address.size() <= 600
         && data.items is list && data.items.size() >= 1 && data.items.size() <= 50
-        && validItems(data.items, data.items.size())
+        && validItemAt(data.items, 0) &&
+        validItemAt(data.items, 1) &&
+        validItemAt(data.items, 2) &&
+        validItemAt(data.items, 3) &&
+        validItemAt(data.items, 4) &&
+        validItemAt(data.items, 5) &&
+        validItemAt(data.items, 6) &&
+        validItemAt(data.items, 7) &&
+        validItemAt(data.items, 8) &&
+        validItemAt(data.items, 9) &&
+        validItemAt(data.items, 10) &&
+        validItemAt(data.items, 11) &&
+        validItemAt(data.items, 12) &&
+        validItemAt(data.items, 13) &&
+        validItemAt(data.items, 14) &&
+        validItemAt(data.items, 15) &&
+        validItemAt(data.items, 16) &&
+        validItemAt(data.items, 17) &&
+        validItemAt(data.items, 18) &&
+        validItemAt(data.items, 19) &&
+        validItemAt(data.items, 20) &&
+        validItemAt(data.items, 21) &&
+        validItemAt(data.items, 22) &&
+        validItemAt(data.items, 23) &&
+        validItemAt(data.items, 24) &&
+        validItemAt(data.items, 25) &&
+        validItemAt(data.items, 26) &&
+        validItemAt(data.items, 27) &&
+        validItemAt(data.items, 28) &&
+        validItemAt(data.items, 29) &&
+        validItemAt(data.items, 30) &&
+        validItemAt(data.items, 31) &&
+        validItemAt(data.items, 32) &&
+        validItemAt(data.items, 33) &&
+        validItemAt(data.items, 34) &&
+        validItemAt(data.items, 35) &&
+        validItemAt(data.items, 36) &&
+        validItemAt(data.items, 37) &&
+        validItemAt(data.items, 38) &&
+        validItemAt(data.items, 39) &&
+        validItemAt(data.items, 40) &&
+        validItemAt(data.items, 41) &&
+        validItemAt(data.items, 42) &&
+        validItemAt(data.items, 43) &&
+        validItemAt(data.items, 44) &&
+        validItemAt(data.items, 45) &&
+        validItemAt(data.items, 46) &&
+        validItemAt(data.items, 47) &&
+        validItemAt(data.items, 48) &&
+        validItemAt(data.items, 49)
         && data.pricedTotal is number && data.pricedTotal >= 0
         && data.hasUnpricedItems is bool
         && data.createdAt is string

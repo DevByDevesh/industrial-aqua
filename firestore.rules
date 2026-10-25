@@ -74,11 +74,11 @@ service cloud.firestore {
     function validNewOrder(data) {
       return data.keys().hasOnly([
           'userId', 'email', 'customer', 'items', 'pricedTotal',
-          'hasUnpricedItems', 'status', 'createdAt', 'updatedAt'
+          'hasUnpricedItems', 'status', 'paymentStatus', 'createdAt', 'updatedAt'
         ])
         && data.keys().hasAll([
           'userId', 'email', 'customer', 'items', 'pricedTotal',
-          'hasUnpricedItems', 'status', 'createdAt', 'updatedAt'
+          'hasUnpricedItems', 'status', 'paymentStatus', 'createdAt', 'updatedAt'
         ])
         && data.userId == request.auth.uid
         && data.email == request.auth.token.email

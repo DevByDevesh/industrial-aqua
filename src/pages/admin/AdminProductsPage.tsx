@@ -211,10 +211,15 @@ export function AdminProductsPage() {
 
   const toggleArchive = async (item: AdminProduct) => {
     if (!db) return;
-    await updateDoc(doc(db, 'products', item.id), {
-      archived: !item.archived,
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      await updateDoc(doc(db, 'products', item.id), {
+        archived: !item.archived,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {
+      setNotice('Could not ' + (item.archived ? 'restore' : 'archive') + ' ' + item.name + ' — permission denied. The updated security rules (v3) may not be published yet.');
+      return;
+    }
     setNotice((item.archived ? 'Restored to shop: ' : 'Archived (hidden from shop): ') + item.name);
     void logAdminAction(user?.email ?? '', item.archived ? 'product.restore' : 'product.archive', item.name, item.archived ? 'Restored to the shop' : 'Archived — hidden from the shop');
     await refresh();

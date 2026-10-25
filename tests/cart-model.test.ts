@@ -106,6 +106,20 @@ describe('unavailable and stock handling', () => {
     expect(rows[0].exceedsStock).toBe(false);
     expect(verifiedHasBlocked(rows)).toBe(false);
   });
+
+  it('blocks a product the store has archived', () => {
+    const rows = reconcileCart([item()], [product({ archived: true })]);
+    expect(rows[0].available).toBe(false);
+    expect(verifiedHasBlocked(rows)).toBe(true);
+    expect(verifiedItems(rows)).toHaveLength(0);
+    expect(verifiedTotal(rows)).toBe(0);
+  });
+
+  it('does not block an explicitly un-archived product', () => {
+    const rows = reconcileCart([item()], [product({ archived: false })]);
+    expect(rows[0].available).toBe(true);
+    expect(verifiedHasBlocked(rows)).toBe(false);
+  });
 });
 
 describe('verified totals', () => {

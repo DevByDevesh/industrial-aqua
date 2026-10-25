@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Boxes, ClipboardList, IndianRupee } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase/client';
 import { STORE_ADMIN_EMAIL, useAuth } from '../../lib/auth';
 import { ORDER_STATUSES, PAYMENT_STATUSES, updateOrderPaymentStatus, updateOrderStatus, type Order, type OrderStatus, type PaymentStatus } from '../../lib/orders';
+import { logAdminAction, type AuditEntry } from '../../lib/audit';
 
 function fetchErrorText(error: unknown): string {
   const code = (error as { code?: string })?.code ?? '';
@@ -42,7 +43,14 @@ async function fetchAllOrders(): Promise<Order[]> {
   return snap.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Order) }));
 }
 
+async function fetchAuditLog(): Promise<AuditEntry[]> {
+  if (!db) return [];
+  const snap = await getDocs(query(collection(db, 'auditLog'), orderBy('at', 'desc'), limit(8)));
+  return snap.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as AuditEntry) }));
+}
+
 export function AdminOverviewPage() {
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -58,6 +66,9 @@ export function AdminOverviewPage() {
         if (cancelled) return;
         setOrders(orderList);
         setProductCount(productSnap ? productSnap.size : null);
+        fetchAuditLog()
+          .then((entries) => { if (!cancelled) setAudit(entries); })
+          .catch(() => { /* audit feed is optional — rules may not be published yet */ });
       } catch (error) {
         if (!cancelled) {
           setOrders([]);
@@ -101,6 +112,19 @@ export function AdminOverviewPage() {
           <span>Priced items total (excl. on-request items)</span>
         </div>
       </div>
+      {audit.length > 0 && (
+        <div className="admin-card">
+          <h2>Recent admin activity</h2>
+          <ul className="order-items">
+            {audit.map((entry) => (
+              <li key={entry.id}>
+                <span>{entry.action} — {entry.summary}</span>
+                <span>{new Date(entry.at).toLocaleString('en-IN')}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {orders && orders.length > 0 && (
         <div className="admin-card">
           <h2>Latest orders</h2>
@@ -119,7 +143,11 @@ export function AdminOverviewPage() {
 }
 
 export function AdminOrdersPage() {
+  const { user } = useAuth();
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = useState(1);
   const [loadError, setLoadError] = useState('');
   const [statusError, setStatusError] = useState('');
 
@@ -145,6 +173,7 @@ export function AdminOrdersPage() {
     setStatusError('');
     try {
       await updateOrderPaymentStatus(order.id, paymentStatus);
+      void logAdminAction(user?.email ?? '', 'order.payment', order.customer.name, 'Order ' + order.id + ': payment ' + (order.paymentStatus ?? 'Pending') + ' → ' + paymentStatus);
       setOrders((current) =>
         current?.map((entry) => (entry.id === order.id ? { ...entry, paymentStatus, updatedAt: new Date().toISOString() } : entry)) ?? current,
       );
@@ -158,6 +187,7 @@ export function AdminOrdersPage() {
     setStatusError('');
     try {
       await updateOrderStatus(order.id, status);
+      void logAdminAction(user?.email ?? '', 'order.status', order.customer.name, 'Order ' + order.id + ': status ' + order.status + ' → ' + status);
       setOrders((current) =>
         current?.map((entry) => (entry.id === order.id ? { ...entry, status, updatedAt: new Date().toISOString() } : entry)) ?? current,
       );
@@ -165,6 +195,17 @@ export function AdminOrdersPage() {
       setStatusError(fetchErrorText(error));
     }
   };
+
+  const filtered = (orders ?? []).filter((order) => {
+    if (statusFilter && order.status !== statusFilter) return false;
+    const needle = search.trim().toLowerCase();
+    if (!needle) return true;
+    return [order.customer.name, order.customer.phone, order.email, order.id ?? ''].join(' ').toLowerCase().includes(needle);
+  });
+  const PAGE_SIZE = 20;
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageOrders = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
     <AdminGate>
@@ -177,6 +218,21 @@ export function AdminOrdersPage() {
       </div>
       {loadError && <p className="admin-error" role="alert">{loadError}</p>}
       {statusError && <p className="admin-error" role="alert">{statusError}</p>}
+      <div className="admin-toolbar">
+        <label className="admin-search">
+          <span className="sr-only">Search orders</span>
+          <input aria-label="Search orders" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search name, phone, email or order ref…" />
+        </label>
+        <label>
+          <span className="sr-only">Filter by status</span>
+          <select aria-label="Filter by status" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}>
+            <option value="">All statuses</option>
+            {ORDER_STATUSES.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+        </label>
+      </div>
       {orders === null ? (
         <p className="admin-muted">Loading orders…</p>
       ) : orders.length === 0 && !loadError ? (
@@ -186,7 +242,7 @@ export function AdminOrdersPage() {
         </div>
       ) : (
         <div className="orders-list">
-          {orders.map((order) => (
+          {pageOrders.map((order) => (
             <article key={order.id} className="order-card">
               <div className="order-card-head">
                 <strong>{order.customer.name}</strong>
@@ -236,6 +292,16 @@ export function AdminOrdersPage() {
               </div>
             </article>
           ))}
+          {filtered.length === 0 && (
+            <p className="admin-muted">No orders match your search or filter.</p>
+          )}
+          {filtered.length > 0 && (
+            <div className="admin-pagination">
+              <button type="button" className="button secondary" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
+              <span className="admin-muted">Page {safePage} of {pageCount} · {filtered.length} orders</span>
+              <button type="button" className="button secondary" disabled={safePage >= pageCount} onClick={() => setPage(safePage + 1)}>Next</button>
+            </div>
+          )}
         </div>
       )}
     </AdminGate>

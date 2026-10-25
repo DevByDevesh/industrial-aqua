@@ -19,6 +19,7 @@ import { LogIn, LogOut, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { auth, db } from '../../lib/firebase/client';
 import { productSections } from '../../data/products';
 import { STORE_ADMIN_EMAIL } from '../../lib/auth';
+import { logAdminAction } from '../../lib/audit';
 
 interface AdminProduct {
   id: string;
@@ -29,6 +30,7 @@ interface AdminProduct {
   specs: string[];
   price: number | null;
   stock: number | null;
+  archived: boolean;
   order: number;
 }
 
@@ -50,8 +52,9 @@ export function AdminProductsPage() {
   const [items, setItems] = useState<AdminProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [notice, setNotice] = useState('');
-  const [drafts, setDrafts] = useState<Record<string, { name: string; price: string; stock: string; specs: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { name: string; price: string; stock: string; section: string; specs: string }>>({});
 
   const [newName, setNewName] = useState('');
   const [newCode, setNewCode] = useState('');
@@ -89,6 +92,7 @@ export function AdminProductsPage() {
             specs: Array.isArray(data.specs) ? data.specs.map(String) : [],
             price: typeof data.price === 'number' ? data.price : null,
             stock: typeof data.stock === 'number' ? data.stock : null,
+            archived: data.archived === true,
             order: typeof data.order === 'number' ? data.order : 0,
           };
         }),
@@ -109,6 +113,11 @@ export function AdminProductsPage() {
       [item.name, item.code ?? '', item.section, item.subsection ?? ''].join(' ').toLowerCase().includes(needle),
     );
   }, [items, search]);
+
+  const PAGE_SIZE = 25;
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageItems = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   if (!authReady) return <p className="admin-muted">Checking sign-in…</p>;
 
@@ -158,6 +167,7 @@ export function AdminProductsPage() {
       name: item.name,
       price: item.price === null ? '' : String(item.price),
       stock: item.stock === null ? '' : String(item.stock),
+      section: item.section,
       specs: item.specs.join('\n'),
     };
 
@@ -174,19 +184,39 @@ export function AdminProductsPage() {
       setNotice('Stock must be a whole number (or blank = not tracked) for ' + item.name);
       return;
     }
+    const changes: string[] = [];
+    if ((draft.name.trim() || item.name) !== item.name) changes.push('name → ' + (draft.name.trim() || item.name));
+    if (price !== item.price) changes.push('price ' + (item.price === null ? 'on request' : '₹' + item.price) + ' → ' + (price === null ? 'on request' : '₹' + price));
+    if (stock !== item.stock) changes.push('stock ' + (item.stock === null ? 'untracked' : item.stock) + ' → ' + (stock === null ? 'untracked' : stock));
+    if (draft.section !== item.section) changes.push('section → ' + draft.section);
     await updateDoc(doc(db, 'products', item.id), {
       name: draft.name.trim() || item.name,
       price,
       stock,
+      section: draft.section,
       specs: draft.specs.split('\n').map((line) => line.trim()).filter(Boolean),
       updatedAt: new Date().toISOString(),
     });
     setNotice('Saved: ' + (draft.name.trim() || item.name));
+    if (changes.length > 0) {
+      void logAdminAction(user?.email ?? '', 'product.update', item.name, changes.join('; '));
+    }
     setDrafts((prev) => {
       const next = { ...prev };
       delete next[item.id];
       return next;
     });
+    await refresh();
+  };
+
+  const toggleArchive = async (item: AdminProduct) => {
+    if (!db) return;
+    await updateDoc(doc(db, 'products', item.id), {
+      archived: !item.archived,
+      updatedAt: new Date().toISOString(),
+    });
+    setNotice((item.archived ? 'Restored to shop: ' : 'Archived (hidden from shop): ') + item.name);
+    void logAdminAction(user?.email ?? '', item.archived ? 'product.restore' : 'product.archive', item.name, item.archived ? 'Restored to the shop' : 'Archived — hidden from the shop');
     await refresh();
   };
 
@@ -211,6 +241,7 @@ export function AdminProductsPage() {
       specs: newSpecs.split('\n').map((line) => line.trim()).filter(Boolean),
       price,
       stock,
+      archived: false,
       order: sectionIndex * 1000 + 900 + Math.floor(Math.random() * 90),
       updatedAt: new Date().toISOString(),
     };
@@ -224,6 +255,7 @@ export function AdminProductsPage() {
     setNewPrice('');
     setNewStock('');
     setNotice('Product added. It is now live in the shop catalogue.');
+    void logAdminAction(user?.email ?? '', 'product.create', newName.trim(), 'Added to section ' + newSection + (price === null ? ', price on request' : ', price ₹' + price));
     await refresh();
   };
 
@@ -259,7 +291,7 @@ export function AdminProductsPage() {
       <div className="admin-toolbar">
         <label className="admin-search">
           <Search size={15} />
-          <input aria-label="Search products" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name or code…" />
+          <input aria-label="Search products" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search name or code…" />
           {search && (
             <button type="button" aria-label="Clear search" onClick={() => setSearch('')}>
               <X size={14} />
@@ -280,9 +312,9 @@ export function AdminProductsPage() {
             <span>Specs (one per line)</span>
             <span>Actions</span>
           </div>
-          {visible.map((item) => {
+          {pageItems.map((item) => {
             const draft = draftOf(item);
-            const dirty = draft.name !== item.name || draft.price !== (item.price === null ? '' : String(item.price)) || draft.stock !== (item.stock === null ? '' : String(item.stock)) || draft.specs !== item.specs.join('\n');
+            const dirty = draft.name !== item.name || draft.price !== (item.price === null ? '' : String(item.price)) || draft.stock !== (item.stock === null ? '' : String(item.stock)) || draft.section !== item.section || draft.specs !== item.specs.join('\n');
             return (
               <div className="admin-row" role="row" key={item.id}>
                 <span>
@@ -293,9 +325,21 @@ export function AdminProductsPage() {
                   />
                   {item.code && <small className="admin-code">{item.code}</small>}
                 </span>
-                <span className="admin-muted">
-                  {productSections.find((section) => section.id === item.section)?.title ?? item.section}
-                  {item.subsection ? ' · ' + item.subsection : ''}
+                <span>
+                  <select
+                    aria-label={'Section for ' + item.name}
+                    value={draft.section}
+                    onChange={(event) => setDrafts((prev) => ({ ...prev, [item.id]: { ...draftOf(item), section: event.target.value } }))}
+                  >
+                    {productSections.map((section) => (
+                      <option key={section.id} value={section.id}>{section.title}</option>
+                    ))}
+                    {!productSections.some((section) => section.id === item.section) && (
+                      <option value={item.section}>{item.section}</option>
+                    )}
+                  </select>
+                  {item.subsection && <small className="admin-code">{item.subsection}</small>}
+                  {item.archived && <small className="admin-code">ARCHIVED — hidden from shop</small>}
                 </span>
                 <span>
                   <input
@@ -325,6 +369,9 @@ export function AdminProductsPage() {
                   <button type="button" className="button button-dark" disabled={!dirty} onClick={() => void saveItem(item)}>
                     <Save size={14} /> Save
                   </button>
+                  <button type="button" className="button secondary" onClick={() => void toggleArchive(item)}>
+                    {item.archived ? 'Restore' : 'Archive'}
+                  </button>
                   <button
                     type="button"
                     className="admin-delete"
@@ -334,6 +381,7 @@ export function AdminProductsPage() {
                       if (window.confirm('Delete "' + item.name + '" from the catalogue?')) {
                         await deleteDoc(doc(db, 'products', item.id));
                         setNotice('Deleted: ' + item.name);
+                        void logAdminAction(user?.email ?? '', 'product.delete', item.name, 'Deleted from the catalogue');
                         await refresh();
                       }
                     }}
@@ -345,6 +393,13 @@ export function AdminProductsPage() {
             );
           })}
           {visible.length === 0 && <p className="admin-muted">No products match your search.</p>}
+          {visible.length > 0 && (
+            <div className="admin-pagination">
+              <button type="button" className="button secondary" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
+              <span className="admin-muted">Page {safePage} of {pageCount} · {visible.length} products</span>
+              <button type="button" className="button secondary" disabled={safePage >= pageCount} onClick={() => setPage(safePage + 1)}>Next</button>
+            </div>
+          )}
         </div>
       )}
 

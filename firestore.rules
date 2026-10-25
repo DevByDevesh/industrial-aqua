@@ -32,7 +32,7 @@ service cloud.firestore {
     function validProduct(data) {
       return data.keys().hasOnly([
           'slug', 'name', 'code', 'section', 'subsection', 'specs',
-          'description', 'price', 'stock', 'order', 'updatedAt'
+          'description', 'price', 'stock', 'archived', 'order', 'updatedAt'
         ])
         && data.keys().hasAll(['slug', 'name', 'section', 'specs', 'price'])
         && data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200
@@ -44,6 +44,7 @@ service cloud.firestore {
         && data.specs is list && data.specs.size() <= 30
         && (data.price == null || (data.price is number && data.price >= 0))
         && (!('stock' in data) || data.stock == null || (data.stock is int && data.stock >= 0))
+        && (!('archived' in data) || data.archived is bool)
         && (!('order' in data) || data.order is number)
         && (!('updatedAt' in data) || data.updatedAt is string);
     }
@@ -165,6 +166,23 @@ service cloud.firestore {
             || request.resource.data.paymentStatus in ['Pending', 'Paid', 'Failed'])
         && request.resource.data.updatedAt is string;
       allow delete: if isAdmin();
+    }
+
+    // ---------------- audit log ----------------
+    // Append-only record of admin changes. Only the admin can create or
+    // read entries; nobody can edit or delete them from the client.
+
+    match /auditLog/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['actor', 'action', 'entity', 'summary', 'at'])
+        && request.resource.data.keys().hasAll(['actor', 'action', 'entity', 'summary', 'at'])
+        && request.resource.data.actor == request.auth.token.email
+        && request.resource.data.action is string && request.resource.data.action.size() <= 60
+        && request.resource.data.entity is string && request.resource.data.entity.size() <= 200
+        && request.resource.data.summary is string && request.resource.data.summary.size() <= 600
+        && request.resource.data.at is string;
+      allow update, delete: if false;
     }
 
     // ---------------- everything else ----------------

@@ -35,6 +35,10 @@ export interface Product {
    * via the admin. null/absent = stock is not tracked for this product and
    * availability is confirmed on enquiry. Never invent a stock level. */
   stock?: number | null
+  /** Archived products are withdrawn from sale: hidden from the shop and
+   * blocked in carts, but kept in the catalogue data (unlike a delete) so
+   * the business can restore them. Set only via the admin. */
+  archived?: boolean
 }
 
 export const productSections: ProductSection[] = [

@@ -65,7 +65,8 @@ export function reconcileCart(items: CartItem[], products: Product[]): VerifiedC
   const bySlug = new Map(products.map((product) => [product.slug, product]));
   return items.map((item) => {
     const live = bySlug.get(item.slug);
-    if (!live) {
+    if (!live || live.archived) {
+      // Missing from the catalogue, or archived by the store: not orderable.
       return { item, available: false, price: item.price, priceChanged: false, stock: null, outOfStock: false, exceedsStock: false };
     }
     const stock = typeof live.stock === 'number' ? live.stock : null;

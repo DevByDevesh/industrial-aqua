@@ -9,11 +9,11 @@ rules_version = '2';
 //   every write must match the product schema (no invented fields, no
 //   negative prices or stock).
 // - orders: a signed-in customer creates an order only for themselves, in
-//   the initial status, with a strictly validated shape. Customers read
-//   only their own orders. Only the admin can change an order afterwards,
-//   and only its status (+ updatedAt) — items and totals are immutable.
-//   There is no payment field anywhere: the site takes no online payment,
-//   so nothing a client sends can mark an order as paid.
+//   the initial status and initial payment state ('Pending'), with a
+//   strictly validated shape. Customers read only their own orders. Only
+//   the admin can change an order afterwards, and only its status /
+//   paymentStatus (+ updatedAt) — items and totals are immutable, and a
+//   customer can never mark their own order as paid.
 // - everything else: denied.
 
 service cloud.firestore {
@@ -83,6 +83,7 @@ service cloud.firestore {
         && data.userId == request.auth.uid
         && data.email == request.auth.token.email
         && data.status == 'Sent to store on WhatsApp'
+        && data.paymentStatus == 'Pending'
         && data.customer is map
         && data.customer.keys().hasOnly(['name', 'phone', 'address'])
         && data.customer.keys().hasAll(['name', 'phone', 'address'])
@@ -103,11 +104,13 @@ service cloud.firestore {
       allow create: if signedIn() && validNewOrder(request.resource.data);
       allow update: if isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'updatedAt'])
+             .hasOnly(['status', 'paymentStatus', 'updatedAt'])
         && request.resource.data.status in [
              'Sent to store on WhatsApp', 'Confirmed by store',
              'Out for delivery', 'Delivered', 'Cancelled'
            ]
+        && (!('paymentStatus' in request.resource.data)
+            || request.resource.data.paymentStatus in ['Pending', 'Paid', 'Failed'])
         && request.resource.data.updatedAt is string;
       allow delete: if isAdmin();
     }

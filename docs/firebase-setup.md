@@ -55,11 +55,14 @@ write-enabled rules unless you mean to edit live data.
 - `orders/{id}` — `userId`, `email`, `customer {name, phone, address}`,
   `items` (each `{slug, name, code?, qty, price}` snapshots taken from the
   verified cart), `pricedTotal`, `hasUnpricedItems`, `status`,
-  `createdAt`, `updatedAt`. Status lifecycle: `Sent to store on WhatsApp`
-  → `Confirmed by store` → `Out for delivery` → `Delivered`, or
-  `Cancelled`. Only the admin can change status; items/totals never change
-  after creation. There is intentionally **no payment status field** — the
-  site takes no online payment.
+  `paymentStatus`, `createdAt`, `updatedAt`. Status lifecycle:
+  `Sent to store on WhatsApp` → `Confirmed by store` → `Out for delivery`
+  → `Delivered`, or `Cancelled`. `paymentStatus` is `Pending`, `Paid` or
+  `Failed`; every order is created as `Pending` (the rules pin this) and
+  only the admin can change it — today that means "the customer paid the
+  store directly", confirmed on WhatsApp. If a payment provider is added
+  later, only the verified server-side/webhook path may set `Paid`.
+  Items and totals never change after creation.
 
 ## Security rules
 

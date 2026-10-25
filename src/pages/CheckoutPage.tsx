@@ -11,7 +11,7 @@ import {
   verifiedTotal,
 } from '../lib/cart-model';
 import { useAuth } from '../lib/auth';
-import { placeOrder, whatsappOrderLink, type Order } from '../lib/orders';
+import { INITIAL_ORDER_STATUS, INITIAL_PAYMENT_STATUS, placeOrder, whatsappOrderLink, type Order } from '../lib/orders';
 import { useProducts } from '../lib/useProducts';
 
 export function CheckoutPage() {
@@ -97,7 +97,8 @@ export function CheckoutPage() {
           items: orderItems.map((item) => ({ slug: item.slug, name: item.name, code: item.code, qty: item.qty, price: item.price })),
           pricedTotal,
           hasUnpricedItems: verifiedHasUnpriced(rows),
-          status: 'Sent to store on WhatsApp',
+          status: INITIAL_ORDER_STATUS,
+          paymentStatus: INITIAL_PAYMENT_STATUS,
           createdAt: new Date().toISOString(),
         };
       }
@@ -174,7 +175,11 @@ export function CheckoutPage() {
             <span>Priced total</span>
             <strong>{hasPriced ? '₹' + pricedTotal.toLocaleString('en-IN') : '—'}</strong>
           </div>
-          <p className="admin-muted">Delivery and any price-on-request items are confirmed by the store on WhatsApp.</p>
+          <div className="cart-summary-row">
+            <span>Payment</span>
+            <strong>Pending — pay the store directly</strong>
+          </div>
+          <p className="admin-muted">No online payment is taken. The store confirms delivery, any price-on-request items and how to pay on WhatsApp; your order is only confirmed once the store confirms it there.</p>
         </aside>
       </section>
     </div>

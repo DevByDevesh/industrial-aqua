@@ -226,3 +226,4 @@
 .admin-row span>input+input{margin-top:6px}
 .order-status-edit select{padding:7px 9px;border:1px solid #dcded5;border-radius:10px;background:#fffefa;color:#171b19;font-size:12px;font-family:inherit}
 .shop-card-bag:disabled{opacity:.55;cursor:not-allowed}
+.order-status-editors{display:flex;gap:8px;flex-wrap:wrap}

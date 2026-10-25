@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase/client';
 import { STORE_ADMIN_EMAIL, useAuth } from '../../lib/auth';
-import { ORDER_STATUSES, updateOrderStatus, type Order, type OrderStatus } from '../../lib/orders';
+import { ORDER_STATUSES, PAYMENT_STATUSES, updateOrderPaymentStatus, updateOrderStatus, type Order, type OrderStatus, type PaymentStatus } from '../../lib/orders';
 
 function fetchErrorText(error: unknown): string {
   const code = (error as { code?: string })?.code ?? '';
@@ -140,6 +140,19 @@ export function AdminOrdersPage() {
     };
   }, []);
 
+  const changePaymentStatus = async (order: Order, paymentStatus: PaymentStatus) => {
+    if (!order.id) return;
+    setStatusError('');
+    try {
+      await updateOrderPaymentStatus(order.id, paymentStatus);
+      setOrders((current) =>
+        current?.map((entry) => (entry.id === order.id ? { ...entry, paymentStatus, updatedAt: new Date().toISOString() } : entry)) ?? current,
+      );
+    } catch (error) {
+      setStatusError(fetchErrorText(error));
+    }
+  };
+
   const changeStatus = async (order: Order, status: OrderStatus) => {
     if (!order.id) return;
     setStatusError('');
@@ -177,20 +190,33 @@ export function AdminOrdersPage() {
             <article key={order.id} className="order-card">
               <div className="order-card-head">
                 <strong>{order.customer.name}</strong>
-                <label className="order-status-edit">
-                  <span className="sr-only">Order status for {order.customer.name}</span>
-                  <select
-                    value={order.status}
-                    onChange={(event) => void changeStatus(order, event.target.value as OrderStatus)}
-                  >
-                    {ORDER_STATUSES.map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                    {!ORDER_STATUSES.includes(order.status as OrderStatus) && (
-                      <option value={order.status}>{order.status}</option>
-                    )}
-                  </select>
-                </label>
+                <span className="order-status-editors">
+                  <label className="order-status-edit">
+                    <span className="sr-only">Order status for {order.customer.name}</span>
+                    <select
+                      value={order.status}
+                      onChange={(event) => void changeStatus(order, event.target.value as OrderStatus)}
+                    >
+                      {ORDER_STATUSES.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                      {!ORDER_STATUSES.includes(order.status as OrderStatus) && (
+                        <option value={order.status}>{order.status}</option>
+                      )}
+                    </select>
+                  </label>
+                  <label className="order-status-edit">
+                    <span className="sr-only">Payment status for {order.customer.name}</span>
+                    <select
+                      value={order.paymentStatus ?? 'Pending'}
+                      onChange={(event) => void changePaymentStatus(order, event.target.value as PaymentStatus)}
+                    >
+                      {PAYMENT_STATUSES.map((status) => (
+                        <option key={status} value={status}>{'Payment: ' + status}</option>
+                      ))}
+                    </select>
+                  </label>
+                </span>
               </div>
               <p className="admin-muted">
                 {new Date(order.createdAt).toLocaleString('en-IN')} · {order.customer.phone} · {order.email}

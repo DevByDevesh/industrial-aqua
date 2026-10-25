@@ -256,6 +256,7 @@ export function OrdersPage() {
               </ul>
               <div className="order-card-foot">
                 <span>Ref: {order.id}</span>
+                <span>Payment: {(order.paymentStatus ?? 'Pending') === 'Paid' ? 'Paid' : (order.paymentStatus ?? 'Pending') === 'Failed' ? 'Failed — the store will help you retry on WhatsApp' : 'Pending — pay the store directly'}</span>
                 <strong>{order.pricedTotal > 0 ? 'Priced total ₹' + order.pricedTotal.toLocaleString('en-IN') : 'Total confirmed on WhatsApp'}</strong>
               </div>
             </article>

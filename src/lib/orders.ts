@@ -22,6 +22,17 @@ export const ORDER_STATUSES = [
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 export const INITIAL_ORDER_STATUS: OrderStatus = ORDER_STATUSES[0];
 
+/** Payment state, tracked separately from fulfilment status. Every order
+ * starts as 'Pending'; only the store admin can move it (firestore.rules
+ * pins the create value and restricts updates), and only after payment is
+ * confirmed with the store directly — the site takes no online payment
+ * and a browser redirect can never set this. When a payment provider is
+ * integrated later, 'Paid' may be set only by the verified webhook /
+ * server-side confirmation path, never by client code. */
+export const PAYMENT_STATUSES = ['Pending', 'Paid', 'Failed'] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+export const INITIAL_PAYMENT_STATUS: PaymentStatus = PAYMENT_STATUSES[0];
+
 export interface Order {
   id?: string;
   userId: string;
@@ -31,6 +42,8 @@ export interface Order {
   pricedTotal: number;
   hasUnpricedItems: boolean;
   status: string;
+  /** Orders saved before Phase 8 may not carry this; treat as 'Pending'. */
+  paymentStatus?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -57,6 +70,7 @@ export async function placeOrder(
     pricedTotal: cartPricedTotal(items),
     hasUnpricedItems: cartHasUnpriced(items),
     status: INITIAL_ORDER_STATUS,
+    paymentStatus: INITIAL_PAYMENT_STATUS,
     createdAt: now,
     updatedAt: now,
   };
@@ -69,6 +83,13 @@ export async function placeOrder(
 export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
   if (!db) throw new Error('Orders are unavailable right now.');
   await updateDoc(doc(db, 'orders', orderId), { status, updatedAt: new Date().toISOString() });
+}
+
+/** Admin only (firestore.rules enforces it): record the payment state after
+ * the store has confirmed payment directly with the customer. */
+export async function updateOrderPaymentStatus(orderId: string, paymentStatus: PaymentStatus): Promise<void> {
+  if (!db) throw new Error('Orders are unavailable right now.');
+  await updateDoc(doc(db, 'orders', orderId), { paymentStatus, updatedAt: new Date().toISOString() });
 }
 
 // Builds the WhatsApp order message link to the store's business number.

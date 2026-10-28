@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useRef,useState,type FormEvent,type PropsWithChildren} from 'react';
 import {Link,NavLink,useLocation,useNavigate} from 'react-router-dom';
-import {ArrowRight,ArrowUpRight,Droplets,Menu,Search,ShoppingBag,User,X} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,Menu,Search,ShoppingBag,User,X} from 'lucide-react';
 import {useFocusTrap} from '../accessibility/useFocusTrap';
 import {useCart} from '../../lib/cart';
 
@@ -69,8 +69,7 @@ export function SiteShell({ children }: PropsWithChildren) {
         </button>
 
         <Link to="/" className="brand-lockup" aria-label="Industrial Aqua home">
-          <span className="brand-mark"><Droplets size={19} /></span>
-          <span className="brand-name">industrial<span>aqua</span><small>RO</small></span>
+          <img className="brand-logo" src="/logo.png" alt="Industrial Aqua" />
         </Link>
 
         <nav className="desktop-nav" aria-label="Main navigation">
@@ -160,7 +159,7 @@ export function SiteShell({ children }: PropsWithChildren) {
           </nav>
         </div>
         <div className="footer-bottom">
-          <span>Industrial Aqua — RO water purifier spare parts and replacement components.</span>
+          <span>Industrial Aqua — Water treatment systems, RO plants and bottling plants.</span>
           <span>Product details, specifications and pricing are confirmed on enquiry while the catalogue is being completed.</span>
         </div>
       </footer>

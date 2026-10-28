@@ -8,6 +8,7 @@ rules_version = '2';
 // - products: public read; writes only by the store admin account, and
 //   every write must match the product schema (no invented fields, no
 //   negative prices or stock).
+//   priceUnit added to the product schema 2026-10-28 (Howrah catalogue).
 // - orders: a signed-in customer creates an order only for themselves, in
 //   the initial status and initial payment state ('Pending'), with a
 //   strictly validated shape. Customers read only their own orders. Only
@@ -32,7 +33,7 @@ service cloud.firestore {
     function validProduct(data) {
       return data.keys().hasOnly([
           'slug', 'name', 'code', 'section', 'subsection', 'specs',
-          'description', 'price', 'stock', 'archived', 'order', 'updatedAt'
+          'description', 'price', 'priceUnit', 'stock', 'archived', 'order', 'updatedAt'
         ])
         && data.keys().hasAll(['slug', 'name', 'section', 'specs', 'price'])
         && data.slug is string && data.slug.size() > 0 && data.slug.size() <= 200
@@ -43,6 +44,7 @@ service cloud.firestore {
         && (!('description' in data) || (data.description is string && data.description.size() <= 4000))
         && data.specs is list && data.specs.size() <= 30
         && (data.price == null || (data.price is number && data.price >= 0))
+        && (!('priceUnit' in data) || (data.priceUnit is string && data.priceUnit.size() <= 20))
         && (!('stock' in data) || data.stock == null || (data.stock is int && data.stock >= 0))
         && (!('archived' in data) || data.archived is bool)
         && (!('order' in data) || data.order is number)

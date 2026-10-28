@@ -211,13 +211,6 @@ export function ShopPage() {
             </div>
           )}
 
-          <div className="shop-catalogue-status">
-            <span className="shop-status-dot" />
-            <div>
-              <strong>Catalogue prices being updated</strong>
-              <p>Product prices are being added by the store team. Until a price appears here, please confirm pricing and availability on enquiry.</p>
-            </div>
-          </div>
         </div>
       </section>
     </div>

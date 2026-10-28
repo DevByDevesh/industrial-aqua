@@ -58,7 +58,7 @@ export function AdminProductsPage() {
 
   const [newName, setNewName] = useState('');
   const [newCode, setNewCode] = useState('');
-  const [newSection, setNewSection] = useState(productSections[0].id);
+  const [newSection, setNewSection] = useState(productSections[0]?.id ?? '');
   const [newSubsection, setNewSubsection] = useState('');
   const [newSpecs, setNewSpecs] = useState('');
   const [newPrice, setNewPrice] = useState('');

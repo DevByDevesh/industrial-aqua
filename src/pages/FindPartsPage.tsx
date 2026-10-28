@@ -18,11 +18,20 @@ export function FindPartsPage() {
   const [subsection, setSubsection] = useState<string | null>(null);
   const [codeQuery, setCodeQuery] = useState('');
 
+  // Catalogue shape (2026-10-28 Howrah re-seed): a product's subsection
+  // carries its category slug and its section carries the category title,
+  // so section membership is tested against the slug. The catalogue has a
+  // single category level — no part types within a section — so step 2
+  // finds nothing and stays hidden; genuine subsection values (distinct
+  // from the section slug) would be picked up here automatically.
   const subsections = useMemo(() => {
     if (!sectionId) return [];
+    const title = productSections.find((section) => section.id === sectionId)?.title;
     const seen = new Set<string>();
     for (const product of products) {
-      if (product.section === sectionId && product.subsection) seen.add(product.subsection);
+      if (product.section === title && product.subsection && product.subsection !== sectionId) {
+        seen.add(product.subsection);
+      }
     }
     return [...seen].sort();
   }, [products, sectionId]);
@@ -31,7 +40,7 @@ export function FindPartsPage() {
     if (!sectionId) return [];
     const query = codeQuery.trim().toLowerCase();
     return products.filter((product) => {
-      if (product.section !== sectionId) return false;
+      if (product.subsection !== sectionId) return false;
       if (subsection && product.subsection !== subsection) return false;
       if (!query) return true;
       const haystack = [product.name, product.code ?? '', product.subsection ?? '', ...product.specs]
@@ -69,7 +78,7 @@ export function FindPartsPage() {
           <legend><span className="finder-step-num">1</span> What kind of part do you need?</legend>
           <div className="finder-options" role="group" aria-label="Catalogue sections">
             {productSections.map((section) => {
-              const count = products.filter((product) => product.section === section.id).length;
+              const count = products.filter((product) => product.subsection === section.id).length;
               const active = sectionId === section.id;
               return (
                 <button

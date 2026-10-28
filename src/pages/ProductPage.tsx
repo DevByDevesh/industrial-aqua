@@ -29,7 +29,16 @@ export function ProductPage() {
 
   const product = products.find((item) => item.slug === slug);
   const related = useMemo(
-    () => (product ? products.filter((item) => item.section === product.section && item.slug !== product.slug).slice(0, 4) : []),
+    () =>
+      product
+        ? products
+            .filter(
+              (item) =>
+                item.slug !== product.slug &&
+                (product.subsection ? item.subsection === product.subsection : item.section === product.section),
+            )
+            .slice(0, 4)
+        : [],
     [products, product],
   );
 
@@ -62,7 +71,10 @@ export function ProductPage() {
     );
   }
 
-  const sectionTitle = productSections.find((section) => section.id === product.section)?.title ?? product.section;
+  // Catalogue shape (2026-10-28 Howrah re-seed): product.section carries
+  // the section title; product.subsection carries the section slug used
+  // in shop links and section lookups.
+  const sectionTitle = productSections.find((section) => section.id === product.subsection)?.title ?? product.section;
   const category = categoryForSection(product.section);
   const image = productImages[product.slug];
 
@@ -95,7 +107,7 @@ export function ProductPage() {
           )}
         </div>
         <div className="product-detail-info">
-          <p className="eyebrow"><span className="eyebrow-dot" /> {sectionTitle}{product.subsection ? ' · ' + product.subsection : ''}</p>
+          <p className="eyebrow"><span className="eyebrow-dot" /> {sectionTitle}</p>
           <h1>{product.name}</h1>
           <dl className="product-detail-meta">
             <div>
@@ -104,7 +116,7 @@ export function ProductPage() {
             </div>
             <div>
               <dt>Catalogue section</dt>
-              <dd><Link to={'/shop?section=' + product.section}>{sectionTitle}</Link>{product.subsection ? ' · ' + product.subsection : ''}</dd>
+              <dd>{product.subsection ? <Link to={'/shop?section=' + product.subsection}>{sectionTitle}</Link> : sectionTitle}</dd>
             </div>
             <div>
               <dt>SKU / Model code</dt>
@@ -138,7 +150,9 @@ export function ProductPage() {
             </>
           )}
           <p className="product-detail-price">
-            {product.price === null ? 'Price on request' : '₹' + product.price.toLocaleString('en-IN')}
+            {product.price === null
+              ? 'Price on request'
+              : '₹' + product.price.toLocaleString('en-IN') + (product.priceUnit ? ' / ' + product.priceUnit : '')}
           </p>
           <p className="product-detail-note">
             Specifications, availability and best pricing are confirmed by the store team on enquiry.

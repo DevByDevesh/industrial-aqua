@@ -23,7 +23,7 @@ const sortOptions: { value: SortKey; label: string }[] = [
 
 function matchesQuery(product: Product, needle: string): boolean {
   if (!needle) return true;
-  const sectionTitle = productSections.find((section) => section.id === product.section)?.title ?? '';
+  const sectionTitle = productSections.find((section) => section.id === product.subsection)?.title ?? product.section;
   const haystack = [product.name, product.code ?? '', product.subsection ?? '', sectionTitle, ...product.specs]
     .join(' ')
     .toLowerCase();
@@ -33,6 +33,22 @@ function matchesQuery(product: Product, needle: string): boolean {
 export function CategoryPage() {
   const { slug } = useParams();
   const category = categoryBySlug(slug);
+  // The route also resolves the catalogue sections themselves (the 27
+  // Howrah categories, 2026-10-28): /category/<section-slug> lists that
+  // section's products. Directory category slugs keep their existing
+  // behaviour, including the enquiry-led pages for ranges with no
+  // catalogue products.
+  const section = category ? undefined : productSections.find((item) => item.id === slug);
+  const view = category
+    ? { title: category.title, tag: category.tag, description: category.description }
+    : section
+      ? {
+          title: section.title,
+          tag: 'CATALOGUE SECTION',
+          description:
+            'Products in this range from the Industrial Aqua catalogue, with their specifications and listed prices. Availability is confirmed on enquiry.',
+        }
+      : null;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const urlQuery = searchParams.get('q') ?? '';
@@ -57,10 +73,11 @@ export function CategoryPage() {
     };
   }, []);
 
-  const categoryProducts = useMemo(
-    () => (category ? productsForCategory(products, category.slug) : []),
-    [products, category],
-  );
+  const categoryProducts = useMemo(() => {
+    if (category) return productsForCategory(products, category.slug);
+    if (section) return products.filter((product) => product.subsection === section.id);
+    return [];
+  }, [products, category, section]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -72,7 +89,7 @@ export function CategoryPage() {
         : filtered;
   }, [categoryProducts, query, sort]);
 
-  if (!category) {
+  if (!view) {
     return (
       <div className="shop-page">
         <section className="shop-intro">
@@ -97,29 +114,33 @@ export function CategoryPage() {
     setSearchParams(next, { replace: true });
   };
 
-  const shopSection = categoryCatalogueSections[category.slug]?.[0];
-  const shopLink = shopSection ? '/shop?section=' + shopSection : '/shop';
+  const shopSection = category ? categoryCatalogueSections[category.slug]?.[0] : undefined;
+  const shopLink = category
+    ? shopSection
+      ? '/shop?section=' + shopSection
+      : '/shop'
+    : '/shop?section=' + (section?.id ?? '');
   const hasProducts = categoryProducts.length > 0;
 
   return (
     <div className="shop-page">
       <section className="shop-intro">
         <nav className="shop-breadcrumb" aria-label="Breadcrumb">
-          <Link to="/">Home</Link><span>/</span><Link to="/shop">Products</Link><span>/</span><span>{category.title}</span>
+          <Link to="/">Home</Link><span>/</span><Link to="/shop">Products</Link><span>/</span><span>{view.title}</span>
         </nav>
-        <p className="eyebrow"><span className="eyebrow-dot" /> {category.tag}</p>
-        <h1>{category.title}</h1>
-        <p className="shop-intro-copy">{category.description}</p>
+        <p className="eyebrow"><span className="eyebrow-dot" /> {view.tag}</p>
+        <h1>{view.title}</h1>
+        <p className="shop-intro-copy">{view.description}</p>
         {hasProducts ? (
           <>
             <form className="shop-search" onSubmit={(event) => event.preventDefault()}>
               <Search size={19} />
               <input
-                aria-label={'Search in ' + category.title}
+                aria-label={'Search in ' + view.title}
                 value={query}
                 onChange={(event) => { setQuery(event.target.value); updateParams({ q: event.target.value }); }}
                 onKeyDown={(event) => { if (event.key === 'Escape' && query) { setQuery(''); updateParams({ q: '' }); } }}
-                placeholder={'Search ' + category.title.toLowerCase() + ' — name or model code...'}
+                placeholder={'Search ' + view.title.toLowerCase() + ' — name or model code...'}
               />
               {query && <button type="button" aria-label="Clear search" onClick={() => { setQuery(''); updateParams({ q: '' }); }}><X size={16} /></button>}
               <button type="submit" className="shop-search-submit">Search <ArrowRight size={15} /></button>
@@ -142,7 +163,7 @@ export function CategoryPage() {
           <div className="shop-results-heading">
             <div>
               <p className="eyebrow">PRODUCT CATALOGUE</p>
-              <h2>{category.title}</h2>
+              <h2>{view.title}</h2>
             </div>
             <span className="shop-result-count" role="status" aria-live="polite">{visible.length} {visible.length === 1 ? 'product' : 'products'}</span>
           </div>
@@ -171,21 +192,21 @@ export function CategoryPage() {
             <div className="shop-empty" role="status">
               <span className="shop-empty-icon"><Search size={22} /></span>
               <h3>No matching products</h3>
-              <p>Nothing in {category.title} matches “{query.trim()}”. Try a product name or model code, or browse the full shop.</p>
+              <p>Nothing in {view.title} matches “{query.trim()}”. Try a product name or model code, or browse the full shop.</p>
               <button className="button button-dark" onClick={() => { setQuery(''); updateParams({ q: '' }); }}>Clear search <X size={15} /></button>
             </div>
           )}
         </section>
       ) : (
         <section className="category-enquiry">
-          <h2>Discuss your {category.title.toLowerCase()} requirement</h2>
+          <h2>Discuss your {view.title.toLowerCase()} requirement</h2>
           <p>
             This range is supplied against enquiry rather than listed in the product catalogue, so capacities,
             specifications and pricing are confirmed for your application first. Share your requirement with
             the team and they will respond with options and a quotation.
           </p>
           <div className="category-enquiry-actions">
-            <a href={whatsappEnquiryLink(category.title)} target="_blank" rel="noreferrer" className="button button-dark">
+            <a href={whatsappEnquiryLink(view.title)} target="_blank" rel="noreferrer" className="button button-dark">
               <MessageCircle size={15} /> Enquire on WhatsApp <ArrowUpRight size={14} />
             </a>
             <Link to="/shop" className="button secondary">Browse the product catalogue <ArrowRight size={15} /></Link>
@@ -193,7 +214,7 @@ export function CategoryPage() {
         </section>
       )}
 
-      <CategoryLinks current={category.slug} />
+      <CategoryLinks current={category?.slug ?? section?.id ?? ''} />
     </div>
   );
 }

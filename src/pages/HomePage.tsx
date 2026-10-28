@@ -1,6 +1,5 @@
-import { ArrowRight, ArrowUpRight, Check, ChevronRight, ClipboardList, Droplets, Factory, Filter, Gauge, Layers3, MessageCircle, Settings2, ShieldCheck, Thermometer, Waves, Wind, Zap, type LucideIcon } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check, ChevronRight, ClipboardList, Droplets, Factory, Filter, Gauge, MessageCircle, Settings2, Thermometer, Waves, Wind, Zap, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { categories, categoryPath } from '../data/catalogue';
 import { productSections } from '../data/products';
 import { productImages } from '../data/product-images';
 import { whatsappEnquiryLink as whatsapp } from '../lib/enquiry';
@@ -12,31 +11,23 @@ import { ProductCard } from '../components/ProductCard';
 // shopping tiles (category quads + account card), then product shelves
 // per catalogue section. Everything shown is the store's real catalogue —
 // no invented ratings, discounts or bestseller claims.
-const tileQuads: { title: string; to: string; slugs: string[]; labels: string[] }[] = [
-  {
-    title: 'Filters & housings',
-    to: '/category/filters',
-    slugs: ['10-black-fv-housing-housings-filters', '10-fv-white-housing-housings-filters', 'mh-nextech-housings-filters', 'inline-nextech-filter-housings-filters'],
-    labels: ['Housings', 'White housing', 'MH series', 'Inline filters'],
-  },
-  {
-    title: 'Pumps, valves & fittings',
-    to: '/category/pumps-valves',
-    slugs: ['pump-nextech-pro-2-yr-warranty-pumps', 'pump-crv-100-gpd-prime-pumps', 'valve-034a-fittings', 'connector-006a-fittings'],
-    labels: ['Booster pumps', 'CRV pumps', 'Valves', 'Connectors'],
-  },
-];
-
-const categoryIcons: Record<string, LucideIcon> = {
-  'domestic-ro': Droplets,
-  'commercial-ro': Waves,
-  '500-1000-lph': Gauge,
-  'industrial-ro': Factory,
-  'filters': Filter,
-  'membranes': Layers3,
-  'pumps-valves': Settings2,
-  'tanks': ShieldCheck,
-  'solutions': Zap,
+// Homepage tiles, shelves and the category grid are all derived from the
+// live catalogue (the 27 Howrah sections since the 2026-10-28 re-seed):
+// a product's subsection carries its section slug, its section the title.
+const sectionIcons: Record<string, LucideIcon> = {
+  'water-treatment-systems': Droplets,
+  'reverse-osmosis-machine': Waves,
+  'reverse-osmosis-plants': Factory,
+  'effluent-treatment-plant': Factory,
+  'swimming-pool': Waves,
+  'water-softening-plant': Waves,
+  'online-water-chiller': Thermometer,
+  'iron-removal-filters': Filter,
+  'filter-media': Filter,
+  'bottle-filling-machine': Gauge,
+  'bottling-plant': Gauge,
+  'pet-blowing-machine': Wind,
+  'batch-coding-machine': Settings2,
 };
 
 const solutions = [
@@ -50,7 +41,7 @@ const solutions = [
 
 function ProductShelf({ sectionId, title }: { sectionId: string; title: string }) {
   const { products } = useProducts();
-  const items = products.filter((product) => product.section === sectionId).slice(0, 10);
+  const items = products.filter((product) => product.subsection === sectionId).slice(0, 10);
   if (items.length === 0) return null;
   return (
     <section className="amz-shelf">
@@ -71,21 +62,49 @@ function ProductShelf({ sectionId, title }: { sectionId: string; title: string }
 
 export function HomePage() {
   const { user } = useAuth();
-  const membraneImage = productImages['nextech-80-gpd-membranes'];
-  const heroImages = [
-    productImages['pump-nextech-150-gpd-pumps'],
-    productImages['nextech-100-gpd-membranes'],
-    productImages['10-20-blue-housing-housings-filters'],
-  ].filter(Boolean) as string[];
+  const { products: allProducts } = useProducts();
+
+  const productsInSection = (sectionId: string) => allProducts.filter((product) => product.subsection === sectionId);
+  const sectionsWithProducts = productSections.filter((section) => productsInSection(section.id).length > 0);
+  const shelfSections = sectionsWithProducts.slice(0, 4);
+
+  // Quad tiles: the first two sections with at least four photographed
+  // products; the single-image tile: the next section with a photo.
+  const withImages = (sectionId: string) => productsInSection(sectionId).filter((product) => productImages[product.slug]);
+  const quadTiles = sectionsWithProducts
+    .filter((section) => withImages(section.id).length >= 4)
+    .slice(0, 2)
+    .map((section) => ({
+      title: section.title,
+      to: '/category/' + section.id,
+      items: withImages(section.id).slice(0, 4),
+    }));
+  const singleSection = sectionsWithProducts.find(
+    (section) => !quadTiles.some((tile) => tile.to === '/category/' + section.id) && withImages(section.id).length > 0,
+  );
+  const singleTile = singleSection
+    ? {
+        title: singleSection.title,
+        to: '/category/' + singleSection.id,
+        image: productImages[withImages(singleSection.id)[0].slug],
+        note: productsInSection(singleSection.id).length + ' products in this range.',
+      }
+    : null;
+
+  const heroImages = sectionsWithProducts
+    .slice(0, 3)
+    .map((section) => withImages(section.id)[0])
+    .filter(Boolean)
+    .map((product) => productImages[product.slug]);
 
   return (
     <div className="home-page amz-home">
       {/* Banner */}
       <section className="amz-banner">
         <div className="amz-banner-copy">
-          <p className="eyebrow"><span className="eyebrow-dot" /> RO SYSTEMS · SPARE PARTS · WATER TREATMENT</p>
+          <p className="eyebrow"><span className="eyebrow-dot" /> RO PLANTS · WATER TREATMENT · BOTTLING</p>
           <h1>Water solutions for <em>every scale.</em></h1>
-          <p>RO plants, membranes, pumps, filters & fittings for domestic, commercial and industrial needs — confirmed personally on WhatsApp.</p>
+          <p>Water treatment systems, RO plants, bottling plants, chillers and more for commercial and industrial needs — confirmed personally on WhatsApp.</p>
           <div className="amz-banner-actions">
             <Link to="/shop" className="button button-dark">Shop all products <ArrowRight size={15} /></Link>
             <a href={whatsapp('water treatment solutions')} target="_blank" rel="noreferrer" className="button secondary">
@@ -93,7 +112,7 @@ export function HomePage() {
             </a>
           </div>
           <div className="home-proof">
-            <span><Check size={14} /> 98 products in the catalogue</span>
+            <span><Check size={14} /> {allProducts.length} products in the catalogue</span>
             <span><Check size={14} /> Enquiry-led support</span>
           </div>
         </div>
@@ -108,14 +127,14 @@ export function HomePage() {
 
       {/* Overlapping tiles */}
       <section className="amz-tiles">
-        {tileQuads.map((tile) => (
+        {quadTiles.map((tile) => (
           <article key={tile.title} className="amz-tile">
             <h2>{tile.title}</h2>
             <div className="amz-quad">
-              {tile.slugs.map((slug, index) => (
-                <Link key={slug} to={tile.to} className="amz-quad-item">
-                  <img src={productImages[slug]} alt={tile.labels[index]} loading="lazy" />
-                  <span>{tile.labels[index]}</span>
+              {tile.items.map((product) => (
+                <Link key={product.slug} to={tile.to} className="amz-quad-item">
+                  <img src={productImages[product.slug]} alt={product.name} loading="lazy" />
+                  <span>{product.name}</span>
                 </Link>
               ))}
             </div>
@@ -123,14 +142,16 @@ export function HomePage() {
           </article>
         ))}
 
-        <article className="amz-tile">
-          <h2>Membranes</h2>
-          <Link to="/category/membranes" className="amz-tile-single">
-            {membraneImage && <img src={membraneImage} alt="RO membranes" loading="lazy" />}
-          </Link>
-          <p className="amz-tile-note">80–300 GPD membranes from the catalogue range.</p>
-          <Link to="/category/membranes" className="amz-tile-link">Shop now <ArrowRight size={13} /></Link>
-        </article>
+        {singleTile && (
+          <article className="amz-tile">
+            <h2>{singleTile.title}</h2>
+            <Link to={singleTile.to} className="amz-tile-single">
+              {singleTile.image && <img src={singleTile.image} alt={singleTile.title} loading="lazy" />}
+            </Link>
+            <p className="amz-tile-note">{singleTile.note}</p>
+            <Link to={singleTile.to} className="amz-tile-link">Shop now <ArrowRight size={13} /></Link>
+          </article>
+        )}
 
         <article className="amz-tile amz-tile-account">
           <h2>{user ? 'Welcome back' : 'Your account'}</h2>
@@ -155,9 +176,10 @@ export function HomePage() {
         </article>
       </section>
 
-      {/* Product shelves */}
-      <ProductShelf sectionId="our-import" title="Our Import range" />
-      <ProductShelf sectionId="fittings" title="Fittings & connectors" />
+      {/* Product shelves — first sections of the catalogue with products */}
+      {shelfSections.slice(0, 2).map((section) => (
+        <ProductShelf key={section.id} sectionId={section.id} title={section.title} />
+      ))}
 
       {/* Category strip */}
       <section className="amz-shelf">
@@ -166,21 +188,23 @@ export function HomePage() {
           <Link to="/find-parts" className="amz-see-all">Find parts <ChevronRight size={14} /></Link>
         </div>
         <div className="amz-cat-grid">
-          {categories.map((category) => {
-            const Icon = categoryIcons[category.slug] ?? Droplets;
+          {productSections.map((section) => {
+            const Icon = sectionIcons[section.id] ?? Droplets;
+            const count = productsInSection(section.id).length;
             return (
-              <Link key={category.slug} to={categoryPath(category)} className="amz-cat-card">
+              <Link key={section.id} to={'/category/' + section.id} className="amz-cat-card">
                 <span className="amz-cat-icon"><Icon size={22} strokeWidth={1.4} /></span>
-                <span className="amz-cat-title">{category.title}</span>
-                <span className="amz-cat-desc">{category.description}</span>
+                <span className="amz-cat-title">{section.title}</span>
+                <span className="amz-cat-desc">{count} {count === 1 ? 'product' : 'products'} in this range</span>
               </Link>
             );
           })}
         </div>
       </section>
 
-      <ProductShelf sectionId="accessories" title="Accessories & controls" />
-      <ProductShelf sectionId="pro-series" title="Pro Series" />
+      {shelfSections.slice(2, 4).map((section) => (
+        <ProductShelf key={section.id} sectionId={section.id} title={section.title} />
+      ))}
 
       {/* Solutions band */}
       <section className="amz-shelf">
@@ -213,7 +237,7 @@ export function HomePage() {
               {section.title} <ArrowUpRight size={13} />
             </Link>
           ))}
-          <Link to="/shop" className="amz-chip amz-chip-dark">All 98 products <ArrowRight size={13} /></Link>
+          <Link to="/shop" className="amz-chip amz-chip-dark">All {allProducts.length} products <ArrowRight size={13} /></Link>
         </div>
       </section>
 

@@ -1,6 +1,55 @@
 // Per-product photos, keyed by product slug; products without an entry
-// simply render without a photo. The test catalogue's photos were
-// removed on 2026-10-28 along with the test products; entries will be
-// added when the catalogue is re-seeded from the client's IndiaMART
-// listing.
-export const productImages: Record<string, string> = {}
+// simply render without a photo. Photos are the client's own product
+// images from his IndiaMART listing (Industrial Aqua Engineering,
+// Howrah), added with the catalogue re-seed of 2026-10-28. Four listing
+// products carried no photo at all and have no entry here.
+export const productImages: Record<string, string> = {
+  "1000lph-water-treatment-system": "/images/products/1000lph-water-treatment-system.jpg",
+  "3000lph-water-treatment-systems": "/images/products/3000lph-water-treatment-systems.jpg",
+  "dialysis-water-plant": "/images/products/dialysis-water-plant.jpg",
+  "water-treatment-plant": "/images/products/water-treatment-plant.jpg",
+  "2400lph-water-treatment-systems": "/images/products/2400lph-water-treatment-systems.jpg",
+  "6000lph-water-treatment-systems": "/images/products/6000lph-water-treatment-systems.jpg",
+  "water-treatment-systems": "/images/products/water-treatment-systems.jpg",
+  "250lph-reverse-osmosis-machine": "/images/products/250lph-reverse-osmosis-machine.jpg",
+  "25lph-reverse-osmosis-machine": "/images/products/25lph-reverse-osmosis-machine.jpg",
+  "lph-reverse-osmosis-machine": "/images/products/lph-reverse-osmosis-machine.jpg",
+  "100lph-reverse-osmosis-machine": "/images/products/100lph-reverse-osmosis-machine.jpg",
+  "industrial-water-treatment-plant": "/images/products/industrial-water-treatment-plant.jpg",
+  "6000-lph-reverse-osmosis-plant": "/images/products/6000-lph-reverse-osmosis-plant.jpg",
+  "frp-ro-plant": "/images/products/frp-ro-plant.jpg",
+  "industrial-ro-components": "/images/products/industrial-ro-components.jpg",
+  "100kld-effluent-treatment-plant": "/images/products/100kld-effluent-treatment-plant.jpg",
+  "effluent-treatment-plant-etp": "/images/products/effluent-treatment-plant-etp.jpg",
+  "sewage-treatment-plant": "/images/products/sewage-treatment-plant.jpg",
+  "500kld-effluent-treatment-plant": "/images/products/500kld-effluent-treatment-plant.jpg",
+  "mineral-water-bottling-plant": "/images/products/mineral-water-bottling-plant.jpg",
+  "60bpm-mineral-water-bottling-plant": "/images/products/60bpm-mineral-water-bottling-plant.jpg",
+  "mineral-water-plant": "/images/products/mineral-water-plant.jpg",
+  "ss-water-treatment-project": "/images/products/ss-water-treatment-project.jpg",
+  "pet-bottling-machine": "/images/products/pet-bottling-machine.jpg",
+  "20-litre-water-jar-washing-machine": "/images/products/20-litre-water-jar-washing-machine.jpg",
+  "bottle-packaging-machines": "/images/products/bottle-packaging-machines.jpg",
+  "packaged-drinking-water-plant": "/images/products/packaged-drinking-water-plant.jpg",
+  "packaged-drinking-water-machine": "/images/products/packaged-drinking-water-machine.jpg",
+  "water-treatment-plant-2": "/images/products/water-treatment-plant-2.jpg",
+  "water-bottle-batch-coding-machine": "/images/products/water-bottle-batch-coding-machine.jpg",
+  "in-ground-swimming-pool": "/images/products/in-ground-swimming-pool.jpg",
+  "water-softener-plant": "/images/products/water-softener-plant.jpg",
+  "water-filter-filteration-system": "/images/products/water-filter-filteration-system.jpg",
+  "30tr-online-water-chiller": "/images/products/30tr-online-water-chiller.jpg",
+  "automatic-sticker-labelling-machine": "/images/products/automatic-sticker-labelling-machine.jpg",
+  "water-purification-system": "/images/products/water-purification-system.jpg",
+  "industrial-water-treatment-chemicals": "/images/products/industrial-water-treatment-chemicals.jpg",
+  "automatic-iron-removal-filter": "/images/products/automatic-iron-removal-filter.jpg",
+  "reverse-osmosis-plants": "/images/products/reverse-osmosis-plants.jpg",
+  "industrial-water-purifier": "/images/products/industrial-water-purifier.jpg",
+  "effluent-treatment-system": "/images/products/effluent-treatment-system.jpg",
+  "water-bottle-making-machine": "/images/products/water-bottle-making-machine.jpg",
+  "filter-media": "/images/products/filter-media.jpg",
+  "8000bph-pet-bottle-blowing-machine": "/images/products/8000bph-pet-bottle-blowing-machine.jpg",
+  "fully-automatic-shrink-wrapping-machine": "/images/products/fully-automatic-shrink-wrapping-machine.jpg",
+  "water-plant-machinery": "/images/products/water-plant-machinery.jpg",
+  "pet-blow-moulding-machine": "/images/products/pet-blow-moulding-machine.jpg",
+  "5000bph-mineral-water-bottle-filling-machine": "/images/products/5000bph-mineral-water-bottle-filling-machine.jpg",
+}

@@ -16,7 +16,9 @@ const sortOptions: { value: SortKey; label: string }[] = [
 
 function matchesQuery(product: Product, needle: string): boolean {
   if (!needle) return true;
-  const sectionTitle = productSections.find((section) => section.id === product.section)?.title ?? '';
+  // Catalogue shape (2026-10-28 Howrah re-seed): product.section carries
+  // the section title and product.subsection carries the section slug.
+  const sectionTitle = productSections.find((section) => section.id === product.subsection)?.title ?? product.section;
   const haystack = [product.name, product.code ?? '', product.subsection ?? '', sectionTitle, ...product.specs]
     .join(' ')
     .toLowerCase();
@@ -79,7 +81,7 @@ export function ShopPage() {
   const groups = useMemo<ProductGroup[]>(() => {
     const needle = query.trim().toLowerCase();
     const filtered = products.filter(
-      (product) => (activeSection === 'all' || product.section === activeSection) && matchesQuery(product, needle),
+      (product) => (activeSection === 'all' || product.subsection === activeSection) && matchesQuery(product, needle),
     );
     const sorted =
       sort === 'az'
@@ -89,11 +91,12 @@ export function ShopPage() {
           : filtered;
     const result: ProductGroup[] = [];
     for (const product of sorted) {
-      const sectionTitle = productSections.find((section) => section.id === product.section)?.title ?? product.section;
-      const key = product.section + '|' + (product.subsection ?? '');
+      const sectionTitle = productSections.find((section) => section.id === product.subsection)?.title ?? product.section;
+      const sectionId = product.subsection ?? product.section;
+      const key = sectionId;
       const existing = result.find((group) => group.key === key);
       if (existing) existing.items.push(product);
-      else result.push({ key, sectionId: product.section, sectionTitle, subsection: product.subsection, items: [product] });
+      else result.push({ key, sectionId, sectionTitle, items: [product] });
     }
     // Keep pamphlet section order regardless of sort choice.
     const order = new Map(productSections.map((section, index) => [section.id, index]));
